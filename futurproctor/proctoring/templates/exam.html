@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exam Page</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Arial', sans-serif;
+        }
+        .question-card {
+            background-color: #ffffff;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .question-text {
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+        .option-tile {
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+        .option-tile:hover {
+            background-color: #e9ecef;
+        }
+        .option-tile.selected {
+            background-color: #d4edda;
+            border-color: #28a745;
+        }
+        .timer {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            font-size: 1.5rem;
+            background-color: #17a2b8;
+            color: #ffffff;
+            padding: 10px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(23, 162, 184, 0.4);
+        }
+        .submit-btn {
+            background-color: #28a745;
+            color: #ffffff;
+            font-size: 1.2rem;
+            padding: 10px 20px;
+            border-radius: 5px;
+            border: none;
+            transition: all 0.3s ease;
+        }
+        .submit-btn:hover {
+            background-color: #218838;
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row">
+            <div class="col-md-8 offset-md-2">
+                <h1 class="text-center mb-4 text-primary">Exam Portal</h1>
+                
+                <!-- Timer -->
+                <div id="timer" class="timer">Time Left: <span id="time"></span></div>
+                
+                <!-- Questions -->
+                <form id="exam-form" method="post" action="{% url 'submit_exam' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="username" value="{{ user.first_name }}">
+                    
+                    {% for question in questions %}
+                        <div class="question-card">
+                            <div class="question-text">{{ forloop.counter }}. {{ question.text }}</div>
+                            <div class="option-tile" onclick="selectOption(this, 'q{{ question.id }}a')">
+                                <input type="radio" name="answer_{{ question.id }}" id="q{{ question.id }}a" value="A" required>
+                                <label for="q{{ question.id }}a">A. {{ question.option_a }}</label>
+                            </div>
+                            <div class="option-tile" onclick="selectOption(this, 'q{{ question.id }}b')">
+                                <input type="radio" name="answer_{{ question.id }}" id="q{{ question.id }}b" value="B">
+                                <label for="q{{ question.id }}b">B. {{ question.option_b }}</label>
+                            </div>
+                            <div class="option-tile" onclick="selectOption(this, 'q{{ question.id }}c')">
+                                <input type="radio" name="answer_{{ question.id }}" id="q{{ question.id }}c" value="C">
+                                <label for="q{{ question.id }}c">C. {{ question.option_c }}</label>
+                            </div>
+                            <div class="option-tile" onclick="selectOption(this, 'q{{ question.id }}d')">
+                                <input type="radio" name="answer_{{ question.id }}" id="q{{ question.id }}d" value="D">
+                                <label for="q{{ question.id }}d">D. {{ question.option_d }}</label>
+                            </div>
+                        </div>
+                    {% endfor %}
+                    
+                    <!-- Submit Button -->
+                    <div class="text-center mt-4">
+                        <button  type="submit" class="btn submit-btn">Submit Exam</button>
+                    </div>
+                    
+                </form>
+                
+              
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Timer Logic
+        let totalTime = 5 * 60; // 5 minutes in seconds
+        const timerElement = document.getElementById("time");
+
+        function startTimer() {
+            const timer = setInterval(() => {
+                const minutes = Math.floor(totalTime / 60);
+                const seconds = totalTime % 60;
+                timerElement.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+
+                if (totalTime === 0) {
+                    clearInterval(timer);
+                    alert("Time's up! Submitting the exam.");
+                    document.getElementById("exam-form").submit();
+                }
+                totalTime--;
+            }, 1000);
+        }
+
+        // Start the timer when the page loads
+        window.onload = startTimer;
+
+        // Function to handle option selection
+        function selectOption(optionTile, inputId) {
+            // Remove 'selected' class from all options in the same question
+            const questionCard = optionTile.closest('.question-card');
+            questionCard.querySelectorAll('.option-tile').forEach(tile => {
+                tile.classList.remove('selected');
+            });
+
+            // Add 'selected' class to the clicked option
+            optionTile.classList.add('selected');
+
+            // Check the radio input
+            document.getElementById(inputId).checked = true;
+        }
+        const socket = new WebSocket('ws://localhost:8000/ws/exam_detections/');
+
+socket.onmessage = function(e) {
+    const data = JSON.parse(e.data);
+    if (data.message) {
+        document.getElementById('detection-message').innerText = data.message;
+    }
+};
+
+socket.onclose = function(e) {
+    console.error('WebSocket closed unexpectedly');
+};
+
+</script>
+</body>
+</html> 
+
+
+
+
+

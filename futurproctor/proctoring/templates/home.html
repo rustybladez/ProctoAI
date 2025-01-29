@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FuturProctor - Home</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* Global Styles */
+        body {
+            background-color: #f3f4f6; /* Light grey background */
+            font-family: 'Arial', sans-serif;
+        }
+
+        /* Navbar */
+        .navbar-brand img {
+            height: 120px; /* Logo size */
+        }
+
+        .btn-active {
+            background-color: #0d6efd !important; /* Blue color (matches btn-primary) */
+            color: white !important;
+        }
+
+        /* Hero Section */
+        .hero-section {
+            background-color: #ffffff; /* White background for contrast */
+            padding: 50px 30px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0px 6px 10px rgba(0, 0, 0, 0.1);
+            margin-top: 40px;
+            margin-bottom: 40px;
+            font-family: 'Arial', sans-serif;
+        }
+
+        .hero-section h1 {
+            font-size: 3rem; /* Larger title */
+            font-weight: bold;
+            color: #0d6efd; /* Bootstrap primary color */
+        }
+
+        .hero-section p {
+            font-size: 1.2rem;
+            margin-top: 20px;
+            line-height: 1.8;
+        }
+
+        .hero-section .btn {
+            margin-top: 20px;
+        }
+
+        /* Rules and Features Section */
+        .section-container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 10px;
+            margin-top: 30px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .section-container h2 {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #0d6efd; /* Bootstrap primary color */
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .section-container p {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: #333; /* Darker text for readability */
+        }
+
+        .section-container ul {
+            list-style: disc inside;
+        }
+
+        .section-container ul li {
+            font-size: 1.1rem;
+            margin: 5px 0;
+        }
+
+        /* Features Section */
+        .features h5 {
+            font-weight: bold;
+            color: #6c757d; /* Secondary color */
+        }
+
+        .features p {
+            color: #6c757d; /* Text-muted color */
+        }
+
+        /* Footer */
+        footer {
+            background: #343a40;
+            color: #ffffff;
+            text-align: center;
+            padding: 20px;
+            margin-top: 40px;
+        
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light shadow">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <img src="{% static 'images/logo.png' %}" alt="FuturProctor Logo"> 
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link active" href="#">Home</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">About</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">Contact</a></li>
+                    <li class="nav-item"><a class="btn btn-primary" href="{% url 'login' %}" role="button">Login</a></li>
+                    <li class="nav-item"><a class="btn btn-secondary ms-2" href="{% url 'registration' %}" role="button">Register</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <div class="container hero-section">
+        <h1>Welcome to FuturProctor!</h1>
+        <p>
+            <b>
+                FuturProctor is an <span style="background-color: yellow;">AI-powered in-browser proctoring platform</span> designed to ensure fair and secure online exams. It uses advanced machine learning models to detect <span style="background-color: yellow;">cheating</span> activities such as the presence of <span style="background-color: yellow;">mobile phones</span>, <span style="background-color: yellow;">books</span>, <span style="background-color: yellow;">multiple faces</span>, and unauthorized <span style="background-color: yellow;">sounds</span>. With real-time monitoring and automated reporting, it empowers educators with actionable insights effortlessly. With seamless functionality and robust privacy, FuturProctor redefines <span style="background-color: yellow;">exam integrity</span> with cutting-edge technology.
+            </b>
+        </p>
+        <a href="#" class="btn btn-primary btn-lg">Learn More</a>
+        <a href="{% url 'registration' %}" class="btn btn-secondary btn-lg ms-3">Register Now</a>
+    </div>
+
+    <!-- Rules and Regulations Section -->
+    <div class="container section-container">
+        <h2>How to Use FuturProctor</h2>
+        <p>Follow these steps for a smooth experience:</p>
+        <ul>
+            <li>Login: Sign in using your registered credentials..</li>
+            <li>System Check: Ensure your webcam, microphone, and internet connection are working properly.</li>
+            <li>Start Exam: Begin the proctoring process by clicking "Start Exam."</li>
+            <li>Real-Time Monitoring: Allow monitoring through your webcam and microphone.</li>
+            <li>Submit Exam: Submit your answers once finished, and the system will generate a report.</li>
+        </ul>
+    </div>
+
+    <!-- System Requirements -->
+    <div class="container section-container">
+        <h2>System Requirements</h2>
+        <p>Ensure your system meets the following requirements:</p>
+        <ul>
+            <li>Device: Laptop or Desktop (not supported on mobile devices).</li>
+            <li>Browser: Latest version of Chrome or Firefox.</li>
+            <li>Operating System: Windows 10 or macOS 10.13 or later.</li>
+            <li>Internet Speed: Minimum 2 Mbps for smooth performance.</li>
+            <li>Webcam & Microphone: Integrated or external required.</li>
+        </ul>
+    </div>
+
+    <!-- FAQs -->
+    <div class="container section-container">
+        <h2>FAQs</h2>
+        <p>Common questions about FuturProctor:</p>
+        <ul>
+            <li><b>Q:</b> What if my internet drops during the exam? <b>A:</b> The system will attempt to reconnect automatically.</li>
+            <li><b>Q:</b> Can I use this on a smartphone? <b>A:</b> Currently, only laptops and desktops are supported.</li>
+            <li><b>Q:</b> How does FuturProctor ensure privacy? <b>A:</b> Your data is securely processed and used only for examination purposes.</li>
+        </ul>
+    </div>
+    <!-- Features Section -->
+    <div class="container section-container features">
+        <h2>Why Choose FuturProctor?</h2>
+        <div class="row text-center">
+            <div class="col-md-4">
+                <i class="fas fa-shield-alt fa-3x text-primary"></i>
+                <h5>Enhanced Security</h5>
+                <p>Ensure exam integrity with advanced AI algorithms.</p>
+            </div>
+            <div class="col-md-4">
+                <i class="fas fa-video fa-3x text-primary"></i>
+                <h5>Real-Time Monitoring</h5>
+                <p>Monitor video and audio for a fair exam environment.</p>
+            </div>
+            <div class="col-md-4">
+                <i class="fas fa-bolt fa-3x text-primary"></i>
+                <h5>Seamless Experience</h5>
+                <p>Enjoy a user-friendly interface and fast performance.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <p>&copy; 2025 FuturProctor. All rights reserved.</p>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

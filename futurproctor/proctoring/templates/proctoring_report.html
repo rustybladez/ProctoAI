@@ -1,0 +1,7 @@
+{% for event in cheating_events %}
+    <div>
+        <h3>{{ event.student.user.first_name}} - {{ event.detected_object }} detected at {{ event.timestamp }}</h3>
+        <p>Cheat Count: {{ event.cheat_count }}</p>
+        <img src="{{ event.image.url }}" alt="Cheating Evidence" width="300">
+    </div>
+{% endfor %}

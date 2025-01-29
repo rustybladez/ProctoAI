@@ -1,0 +1,31 @@
+from django.urls import path
+from . import views
+from django.conf import settings
+from django.conf.urls.static import static
+# from .views import proctoring_report
+
+
+urlpatterns = [
+    path('', views.home, name='home'),  # Home page
+    path('registration/', views.registration, name='registration'),
+    path('login/', views.login, name='login'),
+    path('video_feed/', views.video_feed, name='video_feed'),  # For video feed
+    # path('stop_event /', views.stop_event , name='stop_event'),
+    path('dashboard/', views.dashboard, name='dashboard'),
+    path('exam/', views.exam, name='exam'),
+    path('submit_exam/', views.submit_exam, name='submit_exam'),
+    path('exam_submission_success/', views.exam_submission_success, name='exam_submission_success'),
+    path('result/', views.result, name='result'),
+
+    
+    # path("proctoring_report/", views.proctoring_report, name="proctoring_report")
+
+    
+    
+]
+
+
+
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
