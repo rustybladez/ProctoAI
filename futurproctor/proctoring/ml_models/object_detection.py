@@ -14,7 +14,7 @@ CONFIDENCE_THRESHOLD = 0.5
 
 def detectObject(frame, confidence_threshold=CONFIDENCE_THRESHOLD, resize_width=640):
     """
-    Perform object detection on a single frame.
+    Perform object detection on a single frame, focusing on 'cell phone', 'book', and 'person'.
     
     Args:
         frame (ndarray): Input image frame in BGR format.
@@ -25,8 +25,10 @@ def detectObject(frame, confidence_threshold=CONFIDENCE_THRESHOLD, resize_width=
         labels_this_frame (list): List of detected labels with their confidence scores.
         processed_frame (ndarray): Frame with detection results (bounding boxes and labels).
         person_count (int): Number of detected persons.
+        detected_objects (list): List of detected objects ("cell phone", "book", "person").
     """
     labels_this_frame = []
+    detected_objects = []  # Track objects of interest (cell phone, book, person)
     person_count = 0
 
     # Validate input frame
@@ -51,8 +53,14 @@ def detectObject(frame, confidence_threshold=CONFIDENCE_THRESHOLD, resize_width=
                     label = model.names[int(class_id)]
                     labels_this_frame.append((label, float(score)))
 
+                    # Check for specific objects (cell phone, book, and person)
                     if label.lower() == "person":
                         person_count += 1
+                        detected_objects.append("person")
+                    elif label.lower() == "cell phone":
+                        detected_objects.append("cell phone")
+                    elif label.lower() == "book":
+                        detected_objects.append("book")
 
                     # Draw bounding box in blue
                     cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
@@ -66,42 +74,50 @@ def detectObject(frame, confidence_threshold=CONFIDENCE_THRESHOLD, resize_width=
         logging.error(f"Error during object detection: {e}")
         raise e
 
-    return labels_this_frame, frame, person_count
+    return labels_this_frame, frame, person_count, detected_objects
 
-# Test the object detection function
-if __name__ == "__main__":
-    # Use a webcam or video feed for testing
-    cap = cv2.VideoCapture(0)  # Change to video file path if needed
+# # Test the object detection function
+# if __name__ == "__main__":
+#     # Use a webcam or video feed for testing
+#     cap = cv2.VideoCapture(0)  # Change to video file path if needed
 
-    if not cap.isOpened():
-        logging.error("Failed to access the video feed.")
-        exit(1)
+#     if not cap.isOpened():
+#         logging.error("Failed to access the video feed.")
+#         exit(1)
 
-    logging.info("Starting object detection. Press 'q' to quit.")
+#     logging.info("Starting object detection. Press 'q' to quit.")
 
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            logging.warning("No frame captured from video feed.")
-            break
+#     while True:
+#         ret, frame = cap.read()
+#         if not ret:
+#             logging.warning("No frame captured from video feed.")
+#             break
 
-        try:
-            labels, processed_frame, person_count = detectObject(frame)
+#         try:
+#             labels, processed_frame, person_count, detected_objects = detectObject(frame)
 
-            # Display alert if two or more persons are detected
-            if person_count >= 2:
-                cv2.putText(processed_frame, "ALERT: Two persons detected!", (50, 50),
-                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3)
+#             # Display alert if two or more persons are detected
+#             if person_count >= 2:
+#                 cv2.putText(processed_frame, "ALERT: Two persons detected!", (50, 50),
+#                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3)
 
-            cv2.imshow("Object Detection", processed_frame)
+#             # Display message if "cell phone" or "book" is detected
+#             if "cell phone" in detected_objects:
+#                 cv2.putText(processed_frame, "ALERT: Cell phone detected!", (50, 100),
+#                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3)
+#             if "book" in detected_objects:
+#                 cv2.putText(processed_frame, "ALERT: Book detected!", (50, 150),
+#                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3)
 
-        except Exception as e:
-            logging.error(f"Error in processing frame: {e}")
-            break
+#             cv2.imshow("Object Detection", processed_frame)
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+#         except Exception as e:
+#             logging.error(f"Error in processing frame: {e}")
+#             break
 
-    cap.release()
-    cv2.destroyAllWindows()
-    logging.info("Object detection stopped.")
+#         if cv2.waitKey(1) & 0xFF == ord('q'):
+#             break
+
+#     cap.release()
+#     cv2.destroyAllWindows()
+#     logging.info("Object detection stopped.")

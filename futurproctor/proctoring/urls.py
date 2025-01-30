@@ -2,7 +2,7 @@ from django.urls import path
 from . import views
 from django.conf import settings
 from django.conf.urls.static import static
-# from .views import proctoring_report
+from .views import home, registration,login,video_feed,dashboard,exam_submission_success,exam,submit_exam,result,record_tab_switch,get_warning
 
 
 urlpatterns = [
@@ -16,6 +16,10 @@ urlpatterns = [
     path('submit_exam/', views.submit_exam, name='submit_exam'),
     path('exam_submission_success/', views.exam_submission_success, name='exam_submission_success'),
     path('result/', views.result, name='result'),
+    path('get_warning/', views.get_warning, name='get_warning'),
+    # path('proctor_notifications/', views.proctor_notifications, name='proctor_notifications'),
+    path('record_tab_switch/', views.record_tab_switch, name='record_tab_switch'),
+    
 
     
     # path("proctoring_report/", views.proctoring_report, name="proctoring_report")

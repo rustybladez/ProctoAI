@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Student, CheatingEvent, Exam
+from .models import Student, CheatingEvent, Exam, CheatingImage,CheatingAudio
 import base64
 
 @admin.register(Student)
@@ -19,3 +19,5 @@ class StudentAdmin(admin.ModelAdmin):
 # Registering CheatingEvent and Exam models
 admin.site.register(CheatingEvent)
 admin.site.register(Exam)
+admin.site.register(CheatingImage)
+admin.site.register(CheatingAudio)

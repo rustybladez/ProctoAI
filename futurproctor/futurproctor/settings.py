@@ -38,7 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'proctoring',
-    'channels',  # Add channels here
+    # 'channels',  # Add channels here
 ]
 
 MIDDLEWARE = [
@@ -71,7 +71,7 @@ TEMPLATES = [
     },
 ]
 
-# WSGI_APPLICATION = 'futurproctor.wsgi.application'
+WSGI_APPLICATION = 'futurproctor.wsgi.application'
 
 
 # Database
@@ -80,7 +80,7 @@ TEMPLATES = [
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'futurproctor_db',
+        'NAME': 'proctoring_database',
         'USER': 'postgres',
         'PASSWORD': 'ram123',
         'HOST': 'localhost',
@@ -152,28 +152,4 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 
-
-# Specify the ASGI application
-ASGI_APPLICATION = 'futurproctor.asgi.application'
-
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            "hosts": [('127.0.0.1', 6379)],
-        },
-    },
-}
-
-
-
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': 'redis://localhost:6379/1',  # Port 6379 and DB 1
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-        }
-    }
-}
 
