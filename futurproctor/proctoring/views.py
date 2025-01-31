@@ -141,6 +141,14 @@ import base64
 import numpy as np
 import cv2
 from .models import Student
+# views.py
+from django.shortcuts import render, redirect
+from django.contrib.auth import authenticate, login
+from django.http import JsonResponse
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_exempt
+
+@csrf_exempt  # Allow POST requests without CSRF token (for simplicity, use proper CSRF handling in production)
 ## Login View
 def login(request):
     if request.method == "POST":
@@ -269,20 +277,25 @@ def process_frame(frame, request):
     """Process a single frame for cheating detection."""
     global warning
     labels, processed_frame, person_count, detected_objects = detectObject(frame)
-    cheating_event = None
+    cheating_event = None  # Initialize cheating event
 
-    # Extract object names
+    # Extract object names detected in the frame
     detected_labels = [label for label, _ in labels]
-    # Check for cheating conditions
-    if any(label in ["cell phone", "book"] for label in detected_labels):
-        warning = f"ALERT: {', '.join(detected_labels)} detected!"  # Corrected formatting
+
+    # Filter detected objects for cheating alerts
+    cheating_objects = [label for label in detected_labels if label in ["cell phone", "book"]]
+
+    # Trigger alert only if cell phone or book is detected
+    if cheating_objects:
+        warning = f"ALERT: {', '.join(cheating_objects)} detected!"  # Show only relevant objects
         cheating_event, _ = CheatingEvent.objects.get_or_create(
             student=request.user.student,
             cheating_flag=True,
             event_type="object_detected"
         )
-        save_cheating_event(frame, request, cheating_event, detected_objects)
+        save_cheating_event(frame, request, cheating_event, cheating_objects)  # Save only relevant objects
 
+# Alert only if more than 1 persons are detected
     if person_count > 1:
         warning = "ALERT: Multiple persons detected!"
         cheating_event, _ = CheatingEvent.objects.get_or_create(
@@ -290,8 +303,9 @@ def process_frame(frame, request):
             cheating_flag=True,
             event_type="multiple_persons"
         )
-        save_cheating_event(frame, request, cheating_event, detected_objects)
+        save_cheating_event(frame, request, cheating_event, ["person"])
 
+    # Check if the candidate is not looking at the screen
     gaze = gaze_tracking(frame)
     if gaze["gaze"] != "center":
         warning = "ALERT: Candidate not looking at the screen!"
@@ -300,8 +314,9 @@ def process_frame(frame, request):
             cheating_flag=True,
             event_type="gaze_detected"
         )
-        save_cheating_event(frame, request, cheating_event, detected_objects)
+        save_cheating_event(frame, request, cheating_event, ["gaze_not_center"])  # Save only gaze-related info
 
+    return processed_frame  # Ensure the processed frame is returned
 # Function to process audio
 def process_audio(request):
     """Continuously process audio for cheating detection."""
@@ -322,7 +337,7 @@ def process_audio(request):
         if time.time() - last_audio_detected_time > 5:
             warning = None
 
-        time.sleep(2)
+        time.sleep(1)
 
 # Background processing for video
 def background_processing(request):
@@ -548,3 +563,63 @@ def proctor_notifications(request):
             time.sleep(5)
     
     return StreamingHttpResponse(event_stream(), content_type='text/event-stream')
+
+
+from django.shortcuts import render, get_object_or_404
+from django.contrib.auth.decorators import user_passes_test
+from django.shortcuts import render
+
+def logout(request):
+    return render(request,'home.html')
+
+def is_admin(user):
+    """Check if the user is an admin (staff or superuser)."""
+    return user.is_authenticated and (user.is_staff or user.is_superuser)
+
+def access_denied(request):
+    return render(request, 'access_denied.html')
+
+@user_passes_test(is_admin, login_url='/admin/login/')  # Redirect non-admin users to the admin login page
+def admin_dashboard(request):
+    students = Student.objects.all().prefetch_related('exams')
+    for student in students:
+        cheating_events = CheatingEvent.objects.filter(student=student).count()
+        student.trust_score = 100 - (cheating_events * 10) # Example trust score calculation
+    return render(request, 'admin_dashboard.html', {'students': students})
+
+from collections import defaultdict
+
+def report_page(request, student_id):
+    student = get_object_or_404(Student, id=student_id)
+    exam = student.exams.first()  # Assuming one exam per student for simplicity
+    cheating_events = CheatingEvent.objects.filter(student=student)
+    cheating_images = CheatingImage.objects.filter(event__student=student)
+    cheating_audios = CheatingAudio.objects.filter(event__student=student)
+
+    # Summarize cheating events
+    cheating_events_summary = defaultdict(lambda: {
+        'count': 0,
+        'first_timestamp': None,
+        'last_timestamp': None,
+        'detected_objects': set(),
+    })
+
+    for event in cheating_events:
+        summary = cheating_events_summary[event.event_type]
+        summary['count'] += 1
+        if not summary['first_timestamp']:
+            summary['first_timestamp'] = event.timestamp
+        summary['last_timestamp'] = event.timestamp
+        summary['detected_objects'].update(event.detected_objects)
+
+    # Convert sets to lists for template rendering
+    for event_type, details in cheating_events_summary.items():
+        details['detected_objects'] = list(details['detected_objects'])
+
+    return render(request, 'report_page.html', {
+        'student': student,
+        'exam': exam,
+        'cheating_events_summary': dict(cheating_events_summary),  # Convert defaultdict to a regular dict
+        'cheating_images': cheating_images,
+        'cheating_audios': cheating_audios,
+    })

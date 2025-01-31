@@ -88,18 +88,6 @@ DATABASES = {
     }
 }
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'djongo',
-#         'NAME': 'Futurproctordb',  # Your database name (as shown in Compass)
-#         'CLIENT': {
-#             'host': 'mongodb://localhost:27017/',  # MongoDB connection string
-#             'username': '',  # Add if your MongoDB instance requires authentication
-#             'password': '',
-#             'authSource': 'admin',  # Database for authentication, usually 'admin'
-#         }
-#     }
-# }
 
 
 

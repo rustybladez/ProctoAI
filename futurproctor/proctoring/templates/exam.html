@@ -188,6 +188,16 @@
         window.onbeforeunload = function() {
             return "You are in the middle of an exam! Are you sure you want to leave?";
         };
+        // Prevent Tab Closing Warning, but remove it when submitting the exam
+window.onbeforeunload = function () {
+    return "You are in the middle of an exam! Are you sure you want to leave?";
+};
+
+// Disable the warning when submitting
+document.getElementById("exam-form").addEventListener("submit", function () {
+    window.onbeforeunload = null; // Remove warning
+});
+
     </script>
 </body>
 </html>
