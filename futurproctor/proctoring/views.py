@@ -1,78 +1,91 @@
-# Django imports
-from django.shortcuts import render, redirect  # For rendering templates and redirecting users
-from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, HttpResponseRedirect  # For different types of HTTP responses
-from django.contrib import messages  # For displaying success/error messages
-from django.contrib.auth.decorators import login_required  # To restrict views to logged-in users
-from django.contrib.auth.models import User  # For accessing the User model
-from django.urls import reverse  # For generating URLs dynamically
-from django.views.decorators.csrf import csrf_exempt  # For disabling CSRF protection on certain views
+# Django Core Imports
+from django.shortcuts import render, redirect, get_object_or_404  # Rendering templates, redirecting, and fetching objects
+from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, HttpResponseRedirect  # Handling HTTP responses
+from django.contrib import messages  # Displaying success/error messages
+from django.contrib.auth.decorators import login_required, user_passes_test  # Restricting views to logged-in users
+from django.contrib.auth.models import User  # Accessing Django's built-in User model
+from django.contrib.auth.hashers import make_password  # Hashing passwords securely
+from django.contrib.auth import authenticate, login as auth_login  # Handling user authentication
+from django.urls import reverse  # Generating dynamic URLs
+from django.views.decorators.csrf import csrf_exempt  # Disabling CSRF protection for certain views (Use cautiously)
+from django.utils.timezone import now  # Getting timezone-aware current time
+from django.core.files.base import ContentFile  # Handling in-memory file storage
 
-# Model imports
-from .models import Student, Exam, CheatingEvent  # Models for handling student data, exam results, and cheating events
-from django.utils.timezone import now  # For getting the current time in timezone-aware format
-from django.core.files.base import ContentFile  # For working with file content in memory
+# Models
+from .models import Student, Exam, CheatingEvent, CheatingImage, CheatingAudio  # Importing custom models
 
-# External imports
-import base64  # For encoding and decoding base64 data (e.g., for image handling)
-import cv2  # OpenCV for image and video processing
-import numpy as np  # For working with arrays, especially in image processing
-import face_recognition  # For face recognition operations
-import json  # For parsing and handling JSON data
+# External Library Imports
+import os  # Operating system utilities (e.g., file handling)
+import json  # JSON handling (e.g., parsing request data)
+import threading  # Running concurrent tasks (e.g., real-time monitoring)
+import base64  # Encoding and decoding base64 (used for image handling)
+import numpy as np  # Numerical operations, especially for image processing
+import cv2  # OpenCV for computer vision tasks (e.g., face recognition)
+import logging  # Logging errors and system activity
+import time  # Time-based operations (e.g., timestamps)
+from PIL import Image  # Image processing using the Pillow library
+import io  # Handling in-memory file operations
 
-# Machine learning model imports
-from .ml_models.object_detection import detectObject  # Object detection model for cheating detection
+# Machine Learning Imports (Custom AI Models for Proctoring)
+from .ml_models.object_detection import detectObject  # Detecting objects in the exam environment
+from .ml_models.audio_detection import audio_detection  # Detecting external sounds for cheating detection
+from .ml_models.facial_detections import detectFace  # Monitoring head movements (e.g., looking away)
+# from .ml_models.gaze_tracking import gaze_tracking  # Tracking eye gaze to detect focus and distractions
 
-# Other imports
-import threading  # For handling concurrent tasks (e.g., camera streaming or object detection)
-from datetime import datetime  # For working with date and time objects
-from datetime import datetime as now
-from django.utils import timezone
-import os
-import cv2
-from django.shortcuts import render
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from.ml_models.audio_detection import audio_detection
-from.ml_models.head_pose_detection import head_pose_detection
-from.ml_models.object_detection import detectObject
-from.ml_models.gaze_tracking import gaze_tracking
+# Fix: Import face_recognition (Previously missing)
+import face_recognition  # Used for facial recognition, comparing student faces with stored images
 
+# Fix: Proper datetime handling for Nepal Time Zone (Asia/Kathmandu)
+import pytz  # For timezone handling
+from datetime import datetime  # Standard date and time handling
+
+# Define Nepal Time Zone
+NEPAL_TZ = pytz.timezone('Asia/Kathmandu')
+
+# Function to get Nepal's current time
+def get_nepal_time():
+    """
+    Returns the current time in Nepal's timezone.
+    This ensures all timestamps are consistent with the local time.
+    """
+    return datetime.now(NEPAL_TZ)
 
 
 # Home page view
 def home(request):
+    """
+    Renders the home page of the application.
+    This is the entry point for users visiting the site.
+    """
     return render(request, 'home.html')  # Render the home page
 
 
-from django.shortcuts import render, redirect
-from django.contrib import messages
-from django.contrib.auth.models import User
-from django.core.files.base import ContentFile
-from django.contrib.auth.hashers import make_password
-import base64
-import numpy as np
-import cv2
-from .models import Student
-
-
+# Registration View
 def registration(request):
-    if request.method == 'POST':  # Process the form if submitted
-        # Capture form data
+    """
+    Handles user registration, including:
+    - Capturing form data (name, address, email, password, and photo)
+    - Decoding and processing a base64-encoded image
+    - Extracting face encoding using face recognition
+    - Creating a new User and Student instance
+    - Handling errors and displaying messages
+    """
+    if request.method == 'POST':  # Check if form is submitted
+        # Retrieve form data
         name = request.POST['name']
         address = request.POST['address']
         email = request.POST['email']
         password = request.POST['password']
-        captured_photo = request.POST.get('photo_data')  # Captured photo in base64 format
+        captured_photo = request.POST.get('photo_data')  # Base64 image data
 
-        # Decode the base64 image
         try:
-            # Remove the base64 prefix and decode the image
+            # Decode the base64 image (photo_data comes in "data:image/png;base64,ENCODED_DATA")
             img_data = base64.b64decode(captured_photo.split(',')[1])
-            nparr = np.frombuffer(img_data, np.uint8)
-            image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            nparr = np.frombuffer(img_data, np.uint8)  # Convert to numpy array
+            image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)  # Convert to OpenCV image
 
-            # Extract face encoding
-            face_encoding = get_face_encoding(image)  # Make sure this function returns a valid encoding
+            # Extract face encoding from the image
+            face_encoding = get_face_encoding(image)  # Function should return a list or None
             if face_encoding is None:  # No face detected
                 messages.error(request, "No face detected. Please try again.")
                 return redirect('registration')
@@ -80,39 +93,38 @@ def registration(request):
             messages.error(request, f"Error processing image: {e}")
             return redirect('registration')
 
-        # Check if email already exists
+        # Check if the email is already registered
         if User.objects.filter(email=email).exists():
             messages.error(request, "Email already exists.")
             return redirect('registration')
 
-        # Create the User instance
         try:
+            # Create a new User instance
             user = User.objects.create(
-                username=email,
+                username=email,  # Use email as username for uniqueness
                 email=email,
-                first_name=name.split(' ')[0],  # Use the first part of the name as first name
-                last_name=' '.join(name.split(' ')[1:]) if ' ' in name else '',  # Remaining part as last name
-                password=make_password(password),  # Hash the password
+                first_name=name.split(' ')[0],  # Extract first name
+                last_name=' '.join(name.split(' ')[1:]) if ' ' in name else '',  # Extract last name if available
+                password=make_password(password),  # Hash password for security
             )
 
-            # Save the Student instance linked to the user
+            # Create a linked Student instance
             student = Student(
                 user=user,
                 name=name,
                 address=address,
                 email=email,
-                photo=ContentFile(img_data, name=f"{name}_photo.jpg"),  # Save the photo
-                face_encoding=face_encoding.tolist(),  # Save the face encoding
+                photo=ContentFile(img_data, name=f"{name}_photo.jpg"),  # Save the uploaded image
+                face_encoding=face_encoding.tolist(),  # Convert NumPy array to list
             )
             student.save()
 
-            # Set session data
+            # Store user session data
             request.session['user_id'] = user.id
             request.session['user_name'] = user.first_name
 
             messages.success(request, "Registration successful!")
             return redirect('login')  # Redirect to login page
-
         except Exception as e:
             messages.error(request, f"Error creating user: {e}")
             return redirect('registration')
@@ -122,68 +134,76 @@ def registration(request):
 
 # Helper function to extract face encoding
 def get_face_encoding(image):
+    """
+    Extracts face encoding from an image using the face_recognition library.
+    - Detects faces in the image.
+    - Returns the encoding of the first face found.
+    - Returns None if no faces are detected.
+    """
     face_locations = face_recognition.face_locations(image)  # Detect faces in the image
     if not face_locations:
         return None  # Return None if no faces are detected
     return face_recognition.face_encodings(image, face_locations)[0]  # Return the first face encoding
-
 
 # Helper function to match face encodings
 def match_face_encodings(captured_encoding, stored_encoding):
     return face_recognition.compare_faces([stored_encoding], captured_encoding)[0]  # Compare encodings
 
 
-
-from django.contrib.auth import authenticate, login as auth_login
-from django.http import JsonResponse
-from django.shortcuts import render
-import base64
-import numpy as np
-import cv2
-from .models import Student
-# views.py
-from django.shortcuts import render, redirect
-from django.contrib.auth import authenticate, login
-from django.http import JsonResponse
-from django.contrib.auth.decorators import login_required
-from django.views.decorators.csrf import csrf_exempt
-
+#Login View
 @csrf_exempt  # Allow POST requests without CSRF token (for simplicity, use proper CSRF handling in production)
-## Login View
 def login(request):
+    """
+    Handles user login with email, password, and facial recognition.
+    - Authenticates the user using email and password.
+    - Compares the captured photo with the stored face encoding.
+    - Logs the user in if all checks pass.
+    - Returns JSON responses for success or failure.
+    """
     if request.method == "POST":
+        # Retrieve form data
         email = request.POST.get('email')
         password = request.POST.get('password')
         captured_photo_data = request.POST.get('captured_photo')
 
+        # Validate required fields
         if not email or not password or not captured_photo_data:
             return JsonResponse({"success": False, "error": "Missing email, password, or captured photo."})
 
         try:
+            # Decode the base64 image (remove the "data:image/png;base64," prefix)
             captured_photo_data = captured_photo_data.split(',')[1]
             captured_photo = base64.b64decode(captured_photo_data)
+
+            # Convert the image to a NumPy array and decode it using OpenCV
             nparr = np.frombuffer(captured_photo, np.uint8)
             image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-            captured_encoding = get_face_encoding(image)
 
+            # Extract face encoding from the captured image
+            captured_encoding = get_face_encoding(image)
             if captured_encoding is None:
                 return JsonResponse({"success": False, "error": "No face detected in the captured photo."})
 
+            # Authenticate the user using email and password
             user = authenticate(request, username=email, password=password)
             if user is None:
                 return JsonResponse({"success": False, "error": "Invalid email or password."})
 
             try:
+                # Fetch the associated student record
                 student = user.student
                 stored_encoding = np.array(student.face_encoding)
 
+                # Compare the captured face encoding with the stored encoding
                 if match_face_encodings(captured_encoding, stored_encoding):
+                    # Log the user in
                     auth_login(request, user)
 
-                    # Store student data in the session
+                    # Store student data in the session for future use
                     request.session['student_id'] = student.id
                     request.session['student_name'] = student.name
 
+                    # Return a success response with redirect URL and student name
                     return JsonResponse({
                         "success": True,
                         "redirect_url": "/dashboard/",
@@ -196,176 +216,233 @@ def login(request):
                 return JsonResponse({"success": False, "error": "No student record associated with this account."})
 
         except Exception as e:
+            # Handle any unexpected errors during the login process
             return JsonResponse({"success": False, "error": f"Error processing image: {str(e)}"})
 
+    # Render the login page for GET requests
     return render(request, "login.html")
 
-
+# Logout View 
 def logout_view(request):
-    request.session.flush()  # Clear session data
-    messages.success(request, "You have been logged out.")
-    return redirect('login')
-
+    """
+    Handles user logout.
+    - Clears all session data.
+    - Displays a success message.
+    - Redirects the user to the home page.
+    """
+    request.session.flush()  # Clear all session data
+    messages.success(request, "You have been logged out.")  # Display a success message
+    return redirect('home')  # Redirect to the home page
 
 # Video feed generation for the webcam
 def gen_frames():
-    camera = cv2.VideoCapture(0)  # Open webcam
+    """
+    Generates a live video feed from the webcam.
+    - Captures frames from the webcam using OpenCV.
+    - Encodes each frame as a JPEG image.
+    - Yields the frames as a streaming response for real-time display in the browser.
+    """
+    camera = cv2.VideoCapture(0)  # Open the default webcam (index 0)
+    if not camera.isOpened():  # Check if the webcam was successfully opened
+        raise RuntimeError("Could not open webcam.")
+
     while True:
-        success, frame = camera.read()  # Read a frame
+        success, frame = camera.read()  # Read a frame from the webcam
         if not success:
-            break
-        _, buffer = cv2.imencode('.jpg', frame)  # Encode the frame as JPEG
-        frame = buffer.tobytes()
+            break  # Exit the loop if the frame cannot be read
+
+        # Encode the frame as a JPEG image
+        _, buffer = cv2.imencode('.jpg', frame)
+        frame = buffer.tobytes()  # Convert the frame to bytes
 
         # Yield the frame as part of a streaming response
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
-    camera.release()  # Release the webcam
+    # Release the webcam when the loop ends
+    camera.release()
 
 
 # Video feed view
 def video_feed(request):
-    return StreamingHttpResponse(gen_frames(), content_type='multipart/x-mixed-replace; boundary=frame')  # Stream frames
+    """
+    Streams the live video feed to the browser.
+    - Uses the `gen_frames` generator to fetch frames from the webcam.
+    - Returns a `StreamingHttpResponse` with the appropriate content type for real-time video streaming.
+    """
+    return StreamingHttpResponse(
+        gen_frames(),  # Use the generator to stream frames
+        content_type='multipart/x-mixed-replace; boundary=frame'  # Required for live video streaming
+    )
 
 
 # Stop video feed view
-def stop_event (request):
-    return JsonResponse({'status': 'success'})  # Dummy endpoint for stopping video
+def stop_event(request):
+    """
+    Dummy endpoint for stopping the video feed.
+    - Can be extended to handle cleanup or other actions when the video feed is stopped.
+    - Returns a JSON response indicating success.
+    """
+    return JsonResponse({'status': 'success'})  # Simple response for stopping the video feed
 
-## Dashboard Views
+#Dashboard View
+@login_required
 def dashboard(request):
+    """
+    Renders the dashboard page for authenticated users.
+    - Retrieves the user's name from the session.
+    - Displays personalized content on the dashboard.
+    - Handles cases where the user is not logged in (defaults to 'Guest').
+    """
+    # Retrieve the user's name from the session (default to 'Guest' if not found)
     user_name = request.session.get('user_name', 'Guest')
-    context = {'user_name': user_name}
+
+    # Prepare context data to pass to the template
+    context = {
+        'user_name': user_name,  # Pass the user's name to the template
+    }
+
+    # Render the dashboard template with the context data
     return render(request, 'dashboard.html', context)
 
 
 
-import time
-from threading import Thread
-# Global stop_event for thread control
-stop_event = threading.Event()
-
-
-
 # -------------------------Video Detection Thread----------------------------------
-import io
-import time
-import logging
-import json
-import threading
-from PIL import Image
-import cv2
-from django.shortcuts import render, HttpResponse, redirect
-from django.http import JsonResponse, StreamingHttpResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.contrib.auth.decorators import login_required
-from django.core.files.base import ContentFile
+
 from django.utils import timezone
-from django.contrib import messages
-from .models import CheatingEvent, CheatingImage, CheatingAudio, Exam, Student
+# Define Nepal Time Zone
+NEPAL_TZ = pytz.timezone('Asia/Kathmandu')
 
-logger = logging.getLogger(__name__)
+# Helper function to get Nepal time
+def get_nepal_time():
+    return timezone.now().astimezone(NEPAL_TZ)
 
-# Global variables for warnings and background processes
+# Global variables
 warning = None
 last_audio_detected_time = time.time()
-stop_event = threading.Event()  # To stop background threads
+stop_event = threading.Event()  # Event to stop background processing
+frame_buffer = []  # Buffer to store frames for processing
+logger = logging.getLogger(__name__)
 
-# Function to process each frame
+# Frame Processing for Cheating Detection
 def process_frame(frame, request):
-    """Process a single frame for cheating detection."""
+    """
+    Process a single frame for cheating detection.
+    - Detects multiple persons.
+    - Detects cheating objects (cell phone, book).
+    - Saves cheating events to the database.
+    - Returns the processed frame.
+    """
     global warning
-    labels, processed_frame, person_count, detected_objects = detectObject(frame)
-    cheating_event = None  # Initialize cheating event
 
-    # Extract object names detected in the frame
+    # Detect cheating objects
+    labels, processed_frame = detectObject(frame)
     detected_labels = [label for label, _ in labels]
-
-    # Filter detected objects for cheating alerts
     cheating_objects = [label for label in detected_labels if label in ["cell phone", "book"]]
 
-    # Trigger alert only if cell phone or book is detected
+    # Detect faces and multiple persons
+    faceCount, annotated_frame = detectFace(frame)
+
+    # Trigger alert if multiple faces are detected
+    if faceCount > 1:
+        warning = "ALERT: Multiple Faces Detected!"
+        cheating_event, _ = CheatingEvent.objects.get_or_create(
+            student=request.user.student,
+            cheating_flag=True,
+            event_type="multiple_faces_detected",
+            timestamp=get_nepal_time()
+        )
+        save_cheating_event(frame, request, cheating_event)
+
+    # Trigger alert if cell phone or book is detected
     if cheating_objects:
-        warning = f"ALERT: {', '.join(cheating_objects)} detected!"  # Show only relevant objects
+        warning = f"ALERT: {', '.join(cheating_objects)} detected!"
         cheating_event, _ = CheatingEvent.objects.get_or_create(
             student=request.user.student,
             cheating_flag=True,
-            event_type="object_detected"
+            event_type="object_detected",
+            timestamp=get_nepal_time()
         )
-        save_cheating_event(frame, request, cheating_event, cheating_objects)  # Save only relevant objects
+        save_cheating_event(frame, request, cheating_event, detected_objects=cheating_objects)
 
-# Alert only if more than 1 persons are detected
-    if person_count > 1:
-        warning = "ALERT: Multiple persons detected!"
-        cheating_event, _ = CheatingEvent.objects.get_or_create(
-            student=request.user.student,
-            cheating_flag=True,
-            event_type="multiple_persons"
-        )
-        save_cheating_event(frame, request, cheating_event, ["person"])
+    return annotated_frame  # Return the frame with all detections
 
-    # Check if the candidate is not looking at the screen
-    gaze = gaze_tracking(frame)
-    if gaze["gaze"] != "center":
-        warning = "ALERT: Candidate not looking at the screen!"
-        cheating_event, _ = CheatingEvent.objects.get_or_create(
-            student=request.user.student,
-            cheating_flag=True,
-            event_type="gaze_detected"
-        )
-        save_cheating_event(frame, request, cheating_event, ["gaze_not_center"])  # Save only gaze-related info
-
-    return processed_frame  # Ensure the processed frame is returned
-# Function to process audio
+# Audio Processing for Cheating Detection
 def process_audio(request):
-    """Continuously process audio for cheating detection."""
+    """
+    Continuously process audio for cheating detection.
+    - Detects suspicious audio and saves it to the database.
+    """
     global last_audio_detected_time, warning
 
-    while True:
-        audio = audio_detection()
+    while not stop_event.is_set():
+        audio = audio_detection()  # Detect audio
         if audio["audio_detected"]:
             warning = "ALERT: Suspicious audio detected!"
             cheating_event, _ = CheatingEvent.objects.get_or_create(
                 student=request.user.student,
                 cheating_flag=True,
-                event_type="audio_detected"
+                event_type="audio_detected",
+                timestamp=get_nepal_time()
             )
             save_cheating_event(None, request, cheating_event, audio_data=audio["audio_data"])
             last_audio_detected_time = time.time()
 
-        if time.time() - last_audio_detected_time > 5:
-            warning = None
-
-        time.sleep(1)
+        time.sleep(1)  # Add a delay to reduce CPU usage
 
 # Background processing for video
 def background_processing(request):
-    """Runs video processing in the background."""
+    """
+    Runs video processing in the background.
+    - Captures frames from the webcam.
+    - Processes every alternate frame for cheating detection.
+    - Releases the webcam when the thread is stopped.
+    """
+    global frame_buffer
+
+    # Open the webcam (index 0 is the default camera)
     cap = cv2.VideoCapture(0)
-    frame_count = 0
+    if not cap.isOpened():
+        logger.error("Failed to open webcam.")
+        return
 
-    while not stop_event.is_set():
-        ret, frame = cap.read()
+    frame_count = 0  # Counter to track frames
+
+    while not stop_event.is_set():  # Continue until the stop event is triggered
+        ret, frame = cap.read()  # Read a frame from the webcam
         if not ret:
-            break
-        
-        if frame_count % 2 == 0:
-            process_frame(frame, request)
-        
-        frame_count += 1
-        time.sleep(0.5)
-    
-    cap.release()
+            logger.error("Failed to capture frame from webcam.")
+            break  # Exit the loop if the frame cannot be read
 
+        # Add frame to buffer
+        frame_buffer.append(frame)
+        if len(frame_buffer) > 10:  # Limit buffer size to 10 frames
+            frame_buffer.pop(0)
+
+        # Process every alternate frame to reduce CPU usage
+        if frame_count % 2 == 0:
+            process_frame(frame, request)  # Process the frame for cheating detection
+
+        frame_count += 1  # Increment the frame counter
+        time.sleep(1)  # Add a small delay to reduce CPU usage
+
+    # Release the webcam when the loop ends
+    cap.release()
+    logger.info("Webcam released and background processing stopped.")
+
+# Saving the Cheating Event to the database with image and Audio Data
 def save_cheating_event(frame, request, cheating_event, detected_objects=None, audio_data=None):
-    """Save cheating event along with images and audio in the database."""
+    """
+    Save cheating event along with images and audio in the database.
+    - Stores up to 10 images per event.
+    - Handles both image and audio data.
+    """
     try:
-        
         # Save detected objects
         if detected_objects:
-            cheating_event.detected_objects = detected_objects  # Save as JSON
+            cheating_event.detected_objects = json.dumps(detected_objects)  # Save as JSON
             cheating_event.save()
+
         # Save up to 10 sample images per event
         if frame is not None and cheating_event.cheating_images.count() < 10:
             try:
@@ -373,36 +450,43 @@ def save_cheating_event(frame, request, cheating_event, detected_objects=None, a
                 image_io = io.BytesIO()
                 image_pil.save(image_io, format="JPEG", quality=85)
                 image_content = image_io.getvalue()
-                
+
                 cheating_image = CheatingImage(event=cheating_event)
                 cheating_image.image.save(
-                    f"cheating_{time.time()}.jpg", 
-                    ContentFile(image_content), 
+                    f"cheating_{time.time()}.jpg",
+                    ContentFile(image_content),
                     save=True
                 )
             except Exception as e:
                 logger.error(f"Error processing image: {e}")
-        
+
         # Save audio data
         if audio_data:
             try:
                 cheating_audio = CheatingAudio(event=cheating_event)
                 cheating_audio.audio.save(
-                    f"cheating_audio_{time.time()}.wav", 
-                    ContentFile(audio_data), 
+                    f"cheating_audio_{time.time()}.wav",
+                    ContentFile(audio_data),
                     save=True
                 )
+                print(f"Audio saved: {cheating_audio.audio.path}") 
             except Exception as e:
                 logger.error(f"Error processing audio: {e}")
-        
+
         logger.info(f"Cheating event saved for student {request.user.student.id}")
-    
+
     except Exception as e:
         logger.error(f"Error saving cheating event: {e}")
 
+# Exam View
 @login_required
 def exam(request):
-    """Start the exam and initialize proctoring."""
+    """
+    Start the exam and initialize proctoring.
+    - Loads exam questions.
+    - Starts background threads for video and audio monitoring.
+    - Renders the exam template with questions and tab count.
+    """
     try:
         # Get the Student instance associated with the logged-in user
         student = request.user.student
@@ -434,11 +518,10 @@ def exam(request):
     return render(request, 'exam.html', {
         'questions': questions,
         'warning': warning,
-        'tab_count': tab_count,
+        'tab_count': tab_count, 
     })
 
 # Submit exam
-@login_required
 def submit_exam(request):
     if request.method == 'POST':
         # Stop the background threads
@@ -472,7 +555,7 @@ def submit_exam(request):
             student=user.student,
             total_questions=total_questions,
             correct_answers=correct_answers,
-            timestamp=timezone.now()
+            timestamp=get_nepal_time()
         )
         exam.save()
 
@@ -482,40 +565,68 @@ def submit_exam(request):
 
     return HttpResponse("Invalid request method.", status=400)
 
-# Tab switch tracking
-from django.http import JsonResponse
-from django.shortcuts import redirect
-from django.contrib.auth.decorators import login_required
-from .models import CheatingEvent
-import threading
-
 stop_event = threading.Event()
+
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 @login_required
 def record_tab_switch(request):
     if request.method == "POST":
-        violations, created = CheatingEvent.objects.get_or_create(student=request.user.student)
+        # Get the current student
+        student = request.user.student
+        logger.info(f"Student: {student}")
+
+        # Get the active exam for the student
+        active_exam = Exam.objects.filter(student=student, status='ongoing').first()
+        if not active_exam:
+            logger.error("No active exam found for the student")
+            return JsonResponse({"error": "No active exam found for the student"}, status=400)
+
+        logger.info(f"Active Exam: {active_exam}")
+
+        # Get or create a CheatingEvent for the student and exam
+        cheating_event, created = CheatingEvent.objects.get_or_create(
+            student=student,
+            exam=active_exam,
+            event_type='tab_switch',  # Specify the event type
+            defaults={
+                'cheating_flag': False,
+                'tab_switch_count': 0,
+            }
+        )
+
+        logger.info(f"Cheating Event: {cheating_event}, Created: {created}")
 
         # Increment the tab switch count
-        violations.tab_switch_count += 1
+        cheating_event.tab_switch_count += 1
+        logger.info(f"Updated Tab Switch Count: {cheating_event.tab_switch_count}")
 
         # Set cheating_flag based on tab_switch_count
-        violations.cheating_flag = violations.tab_switch_count > 0
-        violations.save()
+        cheating_event.cheating_flag = cheating_event.tab_switch_count > 0
+        logger.info(f"Cheating Flag: {cheating_event.cheating_flag}")
+
+        # Save the updated CheatingEvent
+        cheating_event.save()
+        logger.info("Cheating Event saved successfully")
 
         # If tab switches exceed 5, take action
-        if violations.tab_switch_count > 5:
-            stop_event.set()  # Stop background threads
+        if cheating_event.tab_switch_count > 5:
+            stop_event.set()  # Stop background threads (ensure stop_event is defined)
+            logger.info("Tab switches exceeded 5, stopping exam")
             return redirect('home')  # Redirect to home page
 
+        # Return a JSON response with the updated count and flag
         return JsonResponse({
             "status": "updated",
-            "count": violations.tab_switch_count,
-            "cheating_flag": violations.cheating_flag,
-            "message": f"Tab switch detected! Total switches: {violations.tab_switch_count}"
+            "count": cheating_event.tab_switch_count,
+            "cheating_flag": cheating_event.cheating_flag,
+            "message": f"Tab switch detected! Total switches: {cheating_event.tab_switch_count}"
         }, status=200)
 
     return JsonResponse({"error": "Invalid request"}, status=400)
+
 
 # Exam submission success page
 def exam_submission_success(request):
@@ -543,6 +654,8 @@ def result(request):
 
     return render(request, 'result.html', context)
 
+
+
 from django.http import JsonResponse
 
 # Fetch warnings
@@ -565,9 +678,6 @@ def proctor_notifications(request):
     return StreamingHttpResponse(event_stream(), content_type='text/event-stream')
 
 
-from django.shortcuts import render, get_object_or_404
-from django.contrib.auth.decorators import user_passes_test
-from django.shortcuts import render
 
 def logout(request):
     return render(request,'home.html')
@@ -579,47 +689,90 @@ def is_admin(user):
 def access_denied(request):
     return render(request, 'access_denied.html')
 
-@user_passes_test(is_admin, login_url='/admin/login/')  # Redirect non-admin users to the admin login page
+def exam_score(exam):
+    """Calculate the exam score percentage."""
+    if exam.total_questions and exam.total_questions > 0 and exam.correct_answers is not None:
+        return round((exam.correct_answers / exam.total_questions) * 100, 2)  # Round to 2 decimal places
+    return 0.0  # Default score if no data is available
+
+
+from django.db.models import Count, Sum
+from django.contrib.auth.decorators import user_passes_test
+
+@user_passes_test(lambda u: u.is_superuser, login_url='/admin/login/')
 def admin_dashboard(request):
-    students = Student.objects.all().prefetch_related('exams')
+    # Fetch students with their exam and cheating event counts
+    students = Student.objects.annotate(
+        exam_count=Count('exams'),
+        cheating_event_count=Count('exams__cheating_events')
+    ).prefetch_related('exams')
+
+    # Calculate trust score and exam score for each student
     for student in students:
-        cheating_events = CheatingEvent.objects.filter(student=student).count()
-        student.trust_score = 100 - (cheating_events * 10) # Example trust score calculation
+        student.trust_score = max(0, 100 - (student.cheating_event_count * 10))  # Trust score logic
+        for exam in student.exams.all():
+            if not exam.percentage_score:
+                exam.percentage_score = exam_score(exam)
+                exam.save()
+
     return render(request, 'admin_dashboard.html', {'students': students})
 
-from collections import defaultdict
 
+import base64
+from django.shortcuts import get_object_or_404
+
+@user_passes_test(lambda u: u.is_superuser, login_url='/admin/login/')
 def report_page(request, student_id):
+    # Fetch the student and their exam
     student = get_object_or_404(Student, id=student_id)
-    exam = student.exams.first()  # Assuming one exam per student for simplicity
-    cheating_events = CheatingEvent.objects.filter(student=student)
+    exam = student.exams.first()
+
+    # Fetch cheating events, images, and audios for the student
+    cheating_events = CheatingEvent.objects.filter(student=student).prefetch_related('cheating_images', 'cheating_audios')
     cheating_images = CheatingImage.objects.filter(event__student=student)
     cheating_audios = CheatingAudio.objects.filter(event__student=student)
 
-    # Summarize cheating events
-    cheating_events_summary = defaultdict(lambda: {
-        'count': 0,
-        'first_timestamp': None,
-        'last_timestamp': None,
-        'detected_objects': set(),
-    })
+    # Calculate tab switch count and gaze count
+    tab_switch_count = sum(event.tab_switch_count for event in cheating_events if event.event_type == "tab_switch")
+    gaze_count = sum(1 for event in cheating_events if event.event_type == "gaze")
 
+    # Process detected objects
+    detected_objects = {}
     for event in cheating_events:
-        summary = cheating_events_summary[event.event_type]
-        summary['count'] += 1
-        if not summary['first_timestamp']:
-            summary['first_timestamp'] = event.timestamp
-        summary['last_timestamp'] = event.timestamp
-        summary['detected_objects'].update(event.detected_objects)
+        for obj in event.detected_objects:
+            detected_objects[obj] = detected_objects.get(obj, 0) + 1
 
-    # Convert sets to lists for template rendering
-    for event_type, details in cheating_events_summary.items():
-        details['detected_objects'] = list(details['detected_objects'])
+    # Determine cheating status
+    cheating = (
+        tab_switch_count > 0
+        or gaze_count > 100
+        or any(obj in detected_objects for obj in ["cell phone", "book", "multiple_person"])
+    )
 
-    return render(request, 'report_page.html', {
+    # Process audio files (convert bytes to base64 for playback)
+    audio_files = []
+    for audio in cheating_audios:
+        if audio.audio:
+            with open(audio.audio.path, "rb") as audio_file:
+                audio_base64 = base64.b64encode(audio_file.read()).decode("utf-8")
+                audio_files.append({
+                    "id": audio.id,
+                    "base64": audio_base64,
+                    "timestamp": audio.timestamp,
+                })
+
+    # Prepare data for the template
+    context = {
         'student': student,
         'exam': exam,
-        'cheating_events_summary': dict(cheating_events_summary),  # Convert defaultdict to a regular dict
+        'cheating': cheating,
+        'tab_switch_count': tab_switch_count,
+        'gaze_count': gaze_count,
+        'detected_objects': detected_objects,
+        'detected_objects_count': sum(detected_objects.values()),
         'cheating_images': cheating_images,
-        'cheating_audios': cheating_audios,
-    })
+        'audio_files': audio_files,
+        'cheating_events': cheating_events,
+    }
+
+    return render(request, 'report_page.html', context)

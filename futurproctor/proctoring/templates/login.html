@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Student Login with Face Recognition</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
@@ -13,39 +13,48 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
+            margin: 0;
+            padding: 0;
         }
         .modal-content {
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            width: 90vw;
+            height: 90vh;
+            border-radius: 10px;
         }
         .modal-title {
             text-align: center;
             width: 100%;
             background-color: #0d6efd;
             color: white;
-            font-size: 1.8rem;
-            padding: 12px 0;
-            border-radius: 5px;
+            font-size: 1.5rem;
+            padding: 10px 0;
+            border-radius: 10px 10px 0 0;
         }
         #loginModal {
             display: block;
+            width: 90vw;
+            height: 90vh;
         }
         #webcam-stream {
             max-width: 300px;
-            max-height: 250px;
+            max-height: 280px;
             object-fit: cover;
             border-radius: 10px;
         }
         .modal-body {
-            padding: 20px;
+            padding: 15px;
+            height: calc(80vh - 120px);
+            overflow-y: auto;
         }
         .card {
-            margin-top: 15px;
+            margin-top: 10px;
             border: 2px solid #0d6efd;
             border-radius: 8px;
         }
         .captured-photo {
             display: none;
-            margin-top: 15px;
+            margin-top: 10px;
         }
         .captured-photo img {
             width: 100%;
@@ -71,21 +80,57 @@
         .button-row {
             display: flex;
             justify-content: center;
-            gap: 15px;
-            margin-top: 15px;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .modal-dialog {
+            margin: 0;
+            max-width: 100%;
+            height: 100vh;
+        }
+        .modal-header {
+            border-bottom: none;
+        }
+        .modal-footer {
+            border-top: none;
+            justify-content: center;
+            padding: 10px;
+        }
+        .instructions {
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+        }
+        .instructions h4 {
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+        }
+        .instructions ul {
+            padding-left: 20px;
+            margin-bottom: 0;
         }
     </style>
 </head>
 <body>
-    <div class="container mt-5">
-        <!-- Login Modal -->
-        <div id="loginModal" tabindex="-1" aria-labelledby="loginModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content">
-                    <!-- Modal Header -->
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="loginModalLabel">Student Login with Face Recognition</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    
+    <!-- Login Modal -->
+    <div id="loginModal" tabindex="-1" aria-labelledby="loginModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <!-- Modal Header -->
+                <div class="modal-header">
+                    <h5 class="modal-title" id="loginModalLabel">Student Login with Face Recognition</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="container mt-3">
+                    <!-- Instructions Section -->
+                    <div class="alert alert-warning instructions" role="alert">
+                        <h4 class="alert-heading">Instructions for Login:</h4>
+                        <ul>
+                            
+                            <li>First Click on <strong>Capture Photo</strong> to take a snapshot.</li>
+                            <li>Enter your email and password in the login form.</li>
+                            <li>Click <strong>Login</strong> to authenticate.</li>
+                        </ul>
                     </div>
 
                     <!-- Modal Body -->

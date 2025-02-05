@@ -1,128 +1,109 @@
-<!-- Report Page -->
-<div class="container mt-4">
-    <h2 class="mb-4 text-primary">Report for {{ student.name }}</h2>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report for {{ student.name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .zoomable-image {
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .zoomable-image:hover {
+            transform: scale(1.5);
+        }
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .grid-item {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+        audio {
+            width: 100%;
+            margin-top: 10px;
+        }
+        .cheating-yes {
+            color: red;
+            font-weight: bold;
+        }
+        .cheating-no {
+            color: green;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1>Report for {{ student.name }}</h1>
 
-    <!-- Student Details Section -->
-    <div class="card mb-4 shadow">
-        <div class="card-header bg-primary text-white">
-            <h5 class="card-title mb-0">Student Details</h5>
-        </div>
-        <div class="card-body">
-            <div class="row align-items-center">
-                <div class="col-md-3 text-center">
-                    <img src="{{ student.photo.url }}" alt="{{ student.name }}" class="img-thumbnail w-75">
-                </div>
-                <div class="col-md-9">
-                    <ul class="list-group list-group-flush">
-                        <li class="list-group-item"><strong>Name:</strong> {{ student.name }}</li>
-                        <li class="list-group-item"><strong>Email:</strong> {{ student.email }}</li>
-                        <li class="list-group-item"><strong>Address:</strong> {{ student.address }}</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Exam Details Section -->
-    <div class="card mb-4 shadow">
-        <div class="card-header bg-primary text-white">
-            <h5 class="card-title mb-0">Exam Details</h5>
-        </div>
-        <div class="card-body">
-            <ul class="list-group list-group-flush">
-                <li class="list-group-item"><strong>Exam Name:</strong> {{ exam.exam_name }}</li>
-                <li class="list-group-item"><strong>Total Questions:</strong> {{ exam.total_questions }}</li>
-                <li class="list-group-item"><strong>Correct Answers:</strong> {{ exam.correct_answers }}</li>
-                <li class="list-group-item"><strong>Percentage Score:</strong> {{ exam.percentage_score }}%</li>
-            </ul>
-        </div>
-    </div>
-
-        <!-- Cheating Events Section -->
-    <div class="card mb-4 shadow">
-        <div class="card-header bg-primary text-white">
-            <h5 class="card-title mb-0">Cheating Events</h5>
-        </div>
-        <div class="card-body">
-            {% if cheating_events_summary %}
-            <div class="table-responsive">
-                <table class="table table-bordered table-hover">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Event Type</th>
-                            <th>Count</th>
-                            <th>First Timestamp</th>
-                            <th>Last Timestamp</th>
-                            <th>Detected Objects</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for event_type, details in cheating_events_summary.items %}
-                        <tr>
-                            <td>{{ event_type }}</td>
-                            <td>{{ details.count }}</td>
-                            <td>{{ details.first_timestamp }}</td>
-                            <td>{{ details.last_timestamp }}</td>
-                            <td>{{ details.detected_objects|join:", " }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}
-            <p class="text-muted">No cheating events detected.</p>
-            {% endif %}
-        </div>
-    </div>
-
-
-    <!-- Cheating Images Section -->
-    <div class="card mb-4 shadow">
-        <div class="card-header bg-primary text-white">
-            <h5 class="card-title mb-0">Cheating Images</h5>
-        </div>
-        <div class="card-body">
-            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-                {% for image in cheating_images|slice:":10" %}
-                <div class="col">
-                    <div class="card h-100">
-                        <img src="{{ image.image.url }}" class="card-img-top rounded" alt="Cheating Image">
-                        <div class="card-body">
-                            <p class="card-text text-muted">Timestamp: {{ image.timestamp }}</p>
-                        </div>
+        <!-- Student Details -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Student Details</h5>
+                <div class="row">
+                    <div class="col-md-3">
+                        <img src="{{ student.photo.url }}" alt="Student Photo" class="img-fluid rounded-circle">
+                    </div>
+                    <div class="col-md-9">
+                        <p><strong>Name:</strong> {{ student.name }}</p>
+                        <p><strong>Email:</strong> {{ student.email }}</p>
+                        <p><strong>Address:</strong> {{ student.address }}</p>
                     </div>
                 </div>
-                {% empty %}
-                <p class="text-muted">No cheating images available.</p>
-                {% endfor %}
             </div>
+        </div>
+
+        <!-- Exam Details -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Exam Details</h5>
+                <p><strong>Exam Name:</strong> {{ exam.exam_name }}</p>
+                <p><strong>Score:</strong> {{ exam.percentage_score|default:"0" }}%</p>
+                <p><strong>Cheating Detected:</strong> <span class="{{ cheating|yesno:'cheating-yes,cheating-no' }}">{{ cheating|yesno:"Yes,No" }}</span></p>
+                <p><strong>Tab Switch Count:</strong> {{ tab_switch_count }}</p>
+                <p><strong>Gaze Count:</strong> {{ gaze_count }}</p>
+                <p><strong>Detected Objects:</strong> {{ detected_objects|join:", " }}</p>
+            </div>
+        </div>
+
+        <!-- Cheating Images -->
+        <h2>Cheating Images</h2>
+        <div class="grid-container">
+            {% for event in cheating_events %}
+                {% for image in event.cheating_images.all|slice:":10" %}
+                <div class="grid-item">
+                    <img src="{{ image.image.url }}" alt="Cheating Image" class="zoomable-image img-fluid">
+                    <p><strong>Event Type:</strong> {{ event.event_type }}</p>
+                    <p><strong>Timestamp:</strong> {{ event.timestamp }}</p>
+                </div>
+                {% endfor %}
+            {% endfor %}
+        </div>
+
+        <!-- Cheating Audio -->
+        <h2 class="mt-4">Cheating Audio</h2>
+        <div class="grid-container">
+            {% for event in cheating_events %}
+                {% for audio in event.cheating_audios.all %}
+                <div class="grid-item">
+                    <audio controls>
+                        <source src="{{ audio.audio.url }}" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                    <p><strong>Event Type:</strong> {{ event.event_type }}</p>
+                    <p><strong>Timestamp:</strong> {{ event.timestamp }}</p>
+                </div>
+                {% endfor %}
+            {% endfor %}
         </div>
     </div>
 
-    <!-- Cheating Audio Section -->
-    <div class="card mb-4 shadow">
-        <div class="card-header bg-primary text-white">
-            <h5 class="card-title mb-0">Cheating Audio</h5>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                {% for audio in cheating_audios|slice:":5" %}
-                <div class="col-md-6 mb-3">
-                    <div class="card h-100">
-                        <div class="card-body">
-                            <h6 class="card-title">Audio {{ forloop.counter }}</h6>
-                            <audio controls class="w-100">
-                                <source src="{{ audio.audio.url }}" type="audio/mpeg">
-                                Your browser does not support the audio element.
-                            </audio>
-                            <p class="card-text text-muted mt-2">Timestamp: {{ audio.timestamp }}</p>
-                        </div>
-                    </div>
-                </div>
-                {% empty %}
-                <p class="text-muted">No cheating audio files available.</p>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
-</div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
