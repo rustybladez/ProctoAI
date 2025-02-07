@@ -5,6 +5,7 @@ asn1crypto==1.5.1
 async-timeout==5.0.1
 attrs==24.3.0
 Automat==24.8.1
+Brotli==1.1.0
 certifi==2024.12.14
 cffi==1.17.1
 channels==4.2.0
@@ -62,10 +63,12 @@ pyasn1_modules==0.4.1
 PyAudio==0.2.14
 pycparser==2.22
 pydub==0.25.1
+pydyf==0.11.0
 pyHanko==0.25.3
 pyhanko-certvalidator==0.26.5
 pyparsing==3.2.1
 pypdf==5.2.0
+pyphen==0.17.2
 python-bidi==0.6.3
 python-dateutil==2.9.0.post0
 pytz==2024.2
@@ -83,6 +86,7 @@ sqlparse==0.5.3
 svglib==1.5.1
 sympy==1.13.1
 tinycss2==1.4.0
+tinyhtml5==2.0.0
 tomli==2.2.1
 torch==2.5.1
 torchvision==0.20.1
@@ -97,6 +101,8 @@ ultralytics-thop==2.0.13
 uritemplate==4.1.1
 uritools==4.0.3
 urllib3==2.3.0
+weasyprint==64.0
 webencodings==0.5.1
 xhtml2pdf==0.2.16
 zope.interface==7.2
+zopfli==0.2.3.post1

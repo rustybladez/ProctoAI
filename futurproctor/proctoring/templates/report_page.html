@@ -29,6 +29,11 @@
 </head>
 <body>
   <div class="container mt-4 report-container">
+    <!-- Download Report Button at the Top Right -->
+    <div class="d-flex justify-content-end mb-3">
+      <a href="{% url 'download_report' student.id %}" class="btn btn-primary">Download Report</a>
+    </div>
+
     <h2 class="text-center text-primary mb-4">Student Examination Report</h2>
     
     <!-- Student Details -->
@@ -43,15 +48,12 @@
         </div>
       </div>
     </div>
-
-    
     
     <!-- Exam Details -->
     <div class="card mb-4">
       <div class="card-header">Exam Details</div>
       <div class="card-body">
         <p><strong>Exam Name:</strong> {{ exam.exam_name }}</p>
-        
         <p><strong>Total Questions:</strong> {{ total_questions }}</p>
         <p><strong>Correct Answers:</strong> {{ correct_answers }}</p>
         <p><strong>Score:</strong> {{ exam.percentage_score|default:"0" }}%</p>

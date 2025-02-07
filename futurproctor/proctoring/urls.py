@@ -23,7 +23,7 @@ urlpatterns = [
     path('admin_dashboard/', views.admin_dashboard, name='admin_dashboard'),
     path('report_page/<int:student_id>/', views.report_page, name='report_page'),
     path('logout/',views.logout, name='logout'),
-    path('download_report',views.download_report,name='download_report')
+    path('download_report/<int:student_id>/', views.download_report, name='download_report'),
 
     
     # path("proctoring_report/", views.proctoring_report, name="proctoring_report")

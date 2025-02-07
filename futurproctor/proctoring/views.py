@@ -408,6 +408,7 @@ def background_processing(request):
     cap.release()
 
 
+# Helper function to create a WAV file from raw audio bytes
 import io
 import wave
 
@@ -429,7 +430,7 @@ def create_wav_bytes(raw_audio, channels=1, sampwidth=2, framerate=48000):
         wf.writeframes(raw_audio)
     return wav_buffer.getvalue()
 
-
+## Function to save cheating event
 def save_cheating_event(frame, request, cheating_event, detected_objects=None, audio_data=None):
     """Save cheating event along with images and audio in the database."""
     try:
@@ -474,6 +475,7 @@ def save_cheating_event(frame, request, cheating_event, detected_objects=None, a
     except Exception as e:
         logger.error(f"Error saving cheating event: {e}")
 
+## Exam Page View
 @login_required
 def exam(request):
     """Start the exam and initialize proctoring."""
@@ -563,6 +565,7 @@ stop_event = threading.Event()
 # Set up logging
 logger = logging.getLogger(__name__)
 
+# Tab switch tracking View
 @login_required
 def record_tab_switch(request):
     if request.method == "POST":
@@ -676,12 +679,11 @@ def logout(request):
 
 # ----------------------Admin Plus Report Page ---------------------------------------
 
-# views.py
+# Admin views
 from django.shortcuts import render, get_object_or_404
 from django.db.models import Count, Sum
 from django.contrib.admin.views.decorators import staff_member_required
 from .models import Student, Exam, CheatingEvent, CheatingImage, CheatingAudio
-
 @staff_member_required(login_url='/admin/login/')
 def admin_dashboard(request):
     # Fetch students with counts for exams and cheating events
@@ -705,6 +707,7 @@ def admin_dashboard(request):
     }
     return render(request, 'admin_dashboard.html', context)
 
+## exam score
 def calculate_exam_score(exam):
     """Calculate the exam score as a percentage."""
     if exam.total_questions and exam.total_questions > 0:
@@ -712,8 +715,8 @@ def calculate_exam_score(exam):
     return 0.0
 
 
+## Helper Function for aggregated detected objects
 import json
-
 def get_detected_objects_string(cheating_events):
     """Aggregate and convert the detected objects from all events into a list."""
     detected_objects_set = set()
@@ -730,6 +733,7 @@ def get_detected_objects_string(cheating_events):
             detected_objects_set.update(objs)
     return list(detected_objects_set)
 
+### Report view
 def report_page(request, student_id):
     student = get_object_or_404(Student, id=student_id)
     exam = student.exams.first()  # Or however you want to choose the exam
@@ -775,36 +779,65 @@ def report_page(request, student_id):
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-from django.http import HttpResponse
 from django.template.loader import get_template
 from xhtml2pdf import pisa
-from django.shortcuts import get_object_or_404
-from .models import Student, Exam
+# (Ensure you import any helper functions you might have, e.g., get_detected_objects_string)
 
 def download_report(request, student_id):
+    # Retrieve student and related data
     student = get_object_or_404(Student, id=student_id)
-    exam = Exam.objects.filter(student=student).last()  # Assuming latest exam
+    exam = student.exams.first()  # Adjust as necessary
+    cheating_events = CheatingEvent.objects.filter(student=student)
+    
+    # Process detected objects (assuming you have a helper function)
+    detected_objects_list = get_detected_objects_string(cheating_events)
+    detected_objects_str = ", ".join(detected_objects_list) if detected_objects_list else "No objects detected"
 
-    template_path = 'report_template.html'
+    # Sum up tab switch counts
+    total_tab_switch_count = cheating_events.aggregate(total=Sum('tab_switch_count'))['total'] or 0
+
+    # Audio URLs (xhtml2pdf might need absolute paths for images and other media,
+    # but for simple cases it often works fine)
+    cheating_audios = CheatingAudio.objects.filter(event__student=student)
+    audio_urls = [audio.audio.url for audio in cheating_audios if audio.audio]
+
+    # Prepare context for the template
     context = {
         'student': student,
         'exam': exam,
-        'total_questions': exam.total_questions,
+        'detected_objects': detected_objects_str,
+        'total_tab_switch_count': total_tab_switch_count,
         'correct_answers': exam.correct_answers,
-        'detected_objects': exam.detected_objects,
-        'cheating_status': exam.cheating_status,
-        'total_tab_switch_count': exam.total_tab_switch_count,
-        'cheating_images': exam.cheating_images.all(),
-        'audio_urls': exam.detect
+        'total_questions': exam.total_questions,
+        'cheating_status': any(
+            event.event_type in ['object_detected', 'multiple_faces_detected', 'tab_switch']
+            for event in cheating_events
+        ),
+        'cheating_images': [
+            {
+                'url': img.image.url,
+                'event_type': img.event.event_type,
+                'timestamp': img.timestamp
+            }
+            for img in CheatingImage.objects.filter(event__student=student)
+        ],
+        'audio_urls': audio_urls,
+        'cheating_events': cheating_events,
     }
+    
+    # Render the HTML template with context
+    template = get_template('report_page.html')
+    html = template.render(context)
+
+    # Create a HttpResponse with PDF headers
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="report_{student.id}.pdf"'
+    
+    # Create PDF using xhtml2pdf (pisa)
+    pisa_status = pisa.CreatePDF(html, dest=response)
+    
+    # Check for errors
+    if pisa_status.err:
+        return HttpResponse('We had some errors while generating the PDF', status=500)
+    
+    return response
