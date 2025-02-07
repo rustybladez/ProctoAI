@@ -10,6 +10,9 @@ from django.urls import reverse  # Generating dynamic URLs
 from django.views.decorators.csrf import csrf_exempt  # Disabling CSRF protection for certain views (Use cautiously)
 from django.utils.timezone import now  # Getting timezone-aware current time
 from django.core.files.base import ContentFile  # Handling in-memory file storage
+import cv2
+import io
+from PIL import Image
 
 # Models
 from .models import Student, Exam, CheatingEvent, CheatingImage, CheatingAudio  # Importing custom models
@@ -29,7 +32,8 @@ import io  # Handling in-memory file operations
 # Machine Learning Imports (Custom AI Models for Proctoring)
 from .ml_models.object_detection import detectObject  # Detecting objects in the exam environment
 from .ml_models.audio_detection import audio_detection  # Detecting external sounds for cheating detection
-from .ml_models.facial_detections import detectFace  # Monitoring head movements (e.g., looking away)
+from .ml_models.gaze_tracking import gaze_tracking # Tracking eye gaze to detect focus and distractions 
+
 # from .ml_models.gaze_tracking import gaze_tracking  # Tracking eye gaze to detect focus and distractions
 
 # Fix: Import face_recognition (Previously missing)
@@ -317,132 +321,123 @@ NEPAL_TZ = pytz.timezone('Asia/Kathmandu')
 def get_nepal_time():
     return timezone.now().astimezone(NEPAL_TZ)
 
-# Global variables
-warning = None
-last_audio_detected_time = time.time()
-stop_event = threading.Event()  # Event to stop background processing
-frame_buffer = []  # Buffer to store frames for processing
 logger = logging.getLogger(__name__)
 
-# Frame Processing for Cheating Detection
+# Global variables for warnings and background processes
+warning = None
+last_audio_detected_time = time.time()
+stop_event = threading.Event()  # To stop background threads
+
+# Function to process each frame
 def process_frame(frame, request):
-    """
-    Process a single frame for cheating detection.
-    - Detects multiple persons.
-    - Detects cheating objects (cell phone, book).
-    - Saves cheating events to the database.
-    - Returns the processed frame.
-    """
+    """Process a single frame for cheating detection."""
     global warning
+    labels, processed_frame, person_count, detected_objects = detectObject(frame)
+    cheating_event = None
 
-    # Detect cheating objects
-    labels, processed_frame = detectObject(frame)
+    # Extract object names
     detected_labels = [label for label, _ in labels]
-    cheating_objects = [label for label in detected_labels if label in ["cell phone", "book"]]
-
-    # Detect faces and multiple persons
-    faceCount, annotated_frame = detectFace(frame)
-
-    # Trigger alert if multiple faces are detected
-    if faceCount > 1:
-        warning = "ALERT: Multiple Faces Detected!"
+    # Check for cheating conditions
+    if any(label in ["cell phone", "book"] for label in detected_labels):
+        warning = f"ALERT: {', '.join(detected_labels)} detected!"  # Corrected formatting
         cheating_event, _ = CheatingEvent.objects.get_or_create(
             student=request.user.student,
             cheating_flag=True,
-            event_type="multiple_faces_detected",
-            timestamp=get_nepal_time()
+            event_type="object_detected"
         )
-        save_cheating_event(frame, request, cheating_event)
+        save_cheating_event(frame, request, cheating_event, detected_objects)
 
-    # Trigger alert if cell phone or book is detected
-    if cheating_objects:
-        warning = f"ALERT: {', '.join(cheating_objects)} detected!"
+    if person_count > 1:
+        warning = "ALERT: Multiple persons detected!"
         cheating_event, _ = CheatingEvent.objects.get_or_create(
             student=request.user.student,
             cheating_flag=True,
-            event_type="object_detected",
-            timestamp=get_nepal_time()
+            event_type="multiple_persons"
         )
-        save_cheating_event(frame, request, cheating_event, detected_objects=cheating_objects)
+        save_cheating_event(frame, request, cheating_event, detected_objects)
 
-    return annotated_frame  # Return the frame with all detections
+    gaze = gaze_tracking(frame)
+    if gaze["gaze"] != "center":
+        warning = "ALERT: Candidate not looking at the screen!"
+        cheating_event, _ = CheatingEvent.objects.get_or_create(
+            student=request.user.student,
+            cheating_flag=True,
+            event_type="gaze_detected"
+        )
+        save_cheating_event(frame, request, cheating_event, detected_objects)
 
-# Audio Processing for Cheating Detection
+# Function to process audio
 def process_audio(request):
-    """
-    Continuously process audio for cheating detection.
-    - Detects suspicious audio and saves it to the database.
-    """
+    """Continuously process audio for cheating detection."""
     global last_audio_detected_time, warning
 
-    while not stop_event.is_set():
-        audio = audio_detection()  # Detect audio
+    while True:
+        audio = audio_detection()
         if audio["audio_detected"]:
             warning = "ALERT: Suspicious audio detected!"
             cheating_event, _ = CheatingEvent.objects.get_or_create(
                 student=request.user.student,
                 cheating_flag=True,
-                event_type="audio_detected",
-                timestamp=get_nepal_time()
+                event_type="audio_detected"
             )
             save_cheating_event(None, request, cheating_event, audio_data=audio["audio_data"])
             last_audio_detected_time = time.time()
 
-        time.sleep(1)  # Add a delay to reduce CPU usage
+        if time.time() - last_audio_detected_time > 5:
+            warning = None
+
+        time.sleep(2)
 
 # Background processing for video
 def background_processing(request):
-    """
-    Runs video processing in the background.
-    - Captures frames from the webcam.
-    - Processes every alternate frame for cheating detection.
-    - Releases the webcam when the thread is stopped.
-    """
-    global frame_buffer
-
-    # Open the webcam (index 0 is the default camera)
+    """Runs video processing in the background."""
     cap = cv2.VideoCapture(0)
-    if not cap.isOpened():
-        logger.error("Failed to open webcam.")
-        return
+    frame_count = 0
 
-    frame_count = 0  # Counter to track frames
-
-    while not stop_event.is_set():  # Continue until the stop event is triggered
-        ret, frame = cap.read()  # Read a frame from the webcam
+    while not stop_event.is_set():
+        ret, frame = cap.read()
         if not ret:
-            logger.error("Failed to capture frame from webcam.")
-            break  # Exit the loop if the frame cannot be read
-
-        # Add frame to buffer
-        frame_buffer.append(frame)
-        if len(frame_buffer) > 10:  # Limit buffer size to 10 frames
-            frame_buffer.pop(0)
-
-        # Process every alternate frame to reduce CPU usage
+            break
+        
         if frame_count % 2 == 0:
-            process_frame(frame, request)  # Process the frame for cheating detection
-
-        frame_count += 1  # Increment the frame counter
-        time.sleep(1)  # Add a small delay to reduce CPU usage
-
-    # Release the webcam when the loop ends
+            process_frame(frame, request)
+        
+        frame_count += 1
+        time.sleep(0.5)
+    
     cap.release()
-    logger.info("Webcam released and background processing stopped.")
 
-# Saving the Cheating Event to the database with image and Audio Data
+
+import io
+import wave
+
+def create_wav_bytes(raw_audio, channels=1, sampwidth=2, framerate=48000):
+    """
+    Wrap raw PCM audio bytes with a WAV header.
+    
+    :param raw_audio: The raw audio bytes (concatenated frames)
+    :param channels: Number of audio channels (1 for mono)
+    :param sampwidth: Sample width in bytes (2 for 16-bit audio)
+    :param framerate: Frame rate (sample rate)
+    :return: Audio data in WAV format as bytes
+    """
+    wav_buffer = io.BytesIO()
+    with wave.open(wav_buffer, 'wb') as wf:
+        wf.setnchannels(channels)
+        wf.setsampwidth(sampwidth)
+        wf.setframerate(framerate)
+        wf.writeframes(raw_audio)
+    return wav_buffer.getvalue()
+
+
 def save_cheating_event(frame, request, cheating_event, detected_objects=None, audio_data=None):
-    """
-    Save cheating event along with images and audio in the database.
-    - Stores up to 10 images per event.
-    - Handles both image and audio data.
-    """
+    """Save cheating event along with images and audio in the database."""
     try:
+        
         # Save detected objects
         if detected_objects:
-            cheating_event.detected_objects = json.dumps(detected_objects)  # Save as JSON
+            cheating_event.detected_objects = detected_objects  # Save as JSON
             cheating_event.save()
-
         # Save up to 10 sample images per event
         if frame is not None and cheating_event.cheating_images.count() < 10:
             try:
@@ -450,43 +445,38 @@ def save_cheating_event(frame, request, cheating_event, detected_objects=None, a
                 image_io = io.BytesIO()
                 image_pil.save(image_io, format="JPEG", quality=85)
                 image_content = image_io.getvalue()
-
+                
                 cheating_image = CheatingImage(event=cheating_event)
                 cheating_image.image.save(
-                    f"cheating_{time.time()}.jpg",
-                    ContentFile(image_content),
+                    f"cheating_{time.time()}.jpg", 
+                    ContentFile(image_content), 
                     save=True
                 )
             except Exception as e:
                 logger.error(f"Error processing image: {e}")
-
+        
         # Save audio data
         if audio_data:
             try:
+                # Convert raw audio bytes to a proper WAV file bytes.
+                wav_data = create_wav_bytes(audio_data, channels=1, sampwidth=2, framerate=48000)
                 cheating_audio = CheatingAudio(event=cheating_event)
                 cheating_audio.audio.save(
-                    f"cheating_audio_{time.time()}.wav",
-                    ContentFile(audio_data),
+                    f"cheating_audio_{time.time()}.wav", 
+                    ContentFile(wav_data), 
                     save=True
                 )
-                print(f"Audio saved: {cheating_audio.audio.path}") 
             except Exception as e:
                 logger.error(f"Error processing audio: {e}")
 
         logger.info(f"Cheating event saved for student {request.user.student.id}")
-
+    
     except Exception as e:
         logger.error(f"Error saving cheating event: {e}")
 
-# Exam View
 @login_required
 def exam(request):
-    """
-    Start the exam and initialize proctoring.
-    - Loads exam questions.
-    - Starts background threads for video and audio monitoring.
-    - Renders the exam template with questions and tab count.
-    """
+    """Start the exam and initialize proctoring."""
     try:
         # Get the Student instance associated with the logged-in user
         student = request.user.student
@@ -518,10 +508,11 @@ def exam(request):
     return render(request, 'exam.html', {
         'questions': questions,
         'warning': warning,
-        'tab_count': tab_count, 
+        'tab_count': tab_count,
     })
 
 # Submit exam
+@login_required
 def submit_exam(request):
     if request.method == 'POST':
         # Stop the background threads
@@ -555,7 +546,7 @@ def submit_exam(request):
             student=user.student,
             total_questions=total_questions,
             correct_answers=correct_answers,
-            timestamp=get_nepal_time()
+            timestamp=timezone.now()
         )
         exam.save()
 
@@ -565,6 +556,7 @@ def submit_exam(request):
 
     return HttpResponse("Invalid request method.", status=400)
 
+# Tab switch tracking
 stop_event = threading.Event()
 
 
@@ -678,101 +670,141 @@ def proctor_notifications(request):
     return StreamingHttpResponse(event_stream(), content_type='text/event-stream')
 
 
-
+## Logout
 def logout(request):
     return render(request,'home.html')
 
-def is_admin(user):
-    """Check if the user is an admin (staff or superuser)."""
-    return user.is_authenticated and (user.is_staff or user.is_superuser)
+# ----------------------Admin Plus Report Page ---------------------------------------
 
-def access_denied(request):
-    return render(request, 'access_denied.html')
-
-def exam_score(exam):
-    """Calculate the exam score percentage."""
-    if exam.total_questions and exam.total_questions > 0 and exam.correct_answers is not None:
-        return round((exam.correct_answers / exam.total_questions) * 100, 2)  # Round to 2 decimal places
-    return 0.0  # Default score if no data is available
-
-
+# views.py
+from django.shortcuts import render, get_object_or_404
 from django.db.models import Count, Sum
-from django.contrib.auth.decorators import user_passes_test
+from django.contrib.admin.views.decorators import staff_member_required
+from .models import Student, Exam, CheatingEvent, CheatingImage, CheatingAudio
 
-@user_passes_test(lambda u: u.is_superuser, login_url='/admin/login/')
+@staff_member_required(login_url='/admin/login/')
 def admin_dashboard(request):
-    # Fetch students with their exam and cheating event counts
+    # Fetch students with counts for exams and cheating events
     students = Student.objects.annotate(
         exam_count=Count('exams'),
-        cheating_event_count=Count('exams__cheating_events')
-    ).prefetch_related('exams')
-
-    # Calculate trust score and exam score for each student
+        cheating_event_count=Count('cheating_events')
+    ).prefetch_related('exams', 'cheating_events')
+    
+    # Calculate trust score and exam scores for each student
     for student in students:
-        student.trust_score = max(0, 100 - (student.cheating_event_count * 10))  # Trust score logic
+        # Example: Trust score decreases 10 points per cheating event (with a floor of 0)
+        student.trust_score = max(0, 100 - (student.cheating_event_count * 10))
+        
         for exam in student.exams.all():
-            if not exam.percentage_score:
-                exam.percentage_score = exam_score(exam)
+            if exam.total_questions and exam.total_questions > 0 and exam.percentage_score is None:
+                exam.percentage_score = calculate_exam_score(exam)
                 exam.save()
+    
+    context = {
+        'students': students,
+    }
+    return render(request, 'admin_dashboard.html', context)
 
-    return render(request, 'admin_dashboard.html', {'students': students})
+def calculate_exam_score(exam):
+    """Calculate the exam score as a percentage."""
+    if exam.total_questions and exam.total_questions > 0:
+        return round((exam.correct_answers / exam.total_questions) * 100, 2)
+    return 0.0
 
 
-import base64
-from django.shortcuts import get_object_or_404
+import json
 
-@user_passes_test(lambda u: u.is_superuser, login_url='/admin/login/')
-def report_page(request, student_id):
-    # Fetch the student and their exam
-    student = get_object_or_404(Student, id=student_id)
-    exam = student.exams.first()
-
-    # Fetch cheating events, images, and audios for the student
-    cheating_events = CheatingEvent.objects.filter(student=student).prefetch_related('cheating_images', 'cheating_audios')
-    cheating_images = CheatingImage.objects.filter(event__student=student)
-    cheating_audios = CheatingAudio.objects.filter(event__student=student)
-
-    # Calculate tab switch count and gaze count
-    tab_switch_count = sum(event.tab_switch_count for event in cheating_events if event.event_type == "tab_switch")
-    gaze_count = sum(1 for event in cheating_events if event.event_type == "gaze")
-
-    # Process detected objects
-    detected_objects = {}
+def get_detected_objects_string(cheating_events):
+    """Aggregate and convert the detected objects from all events into a list."""
+    detected_objects_set = set()
     for event in cheating_events:
-        for obj in event.detected_objects:
-            detected_objects[obj] = detected_objects.get(obj, 0) + 1
+        # If detected_objects is not already a list, try converting it.
+        objs = event.detected_objects
+        if isinstance(objs, str):
+            try:
+                objs = json.loads(objs)
+            except json.JSONDecodeError:
+                objs = []
+        # Now, objs should be a list so add each one to our set.
+        if isinstance(objs, list):
+            detected_objects_set.update(objs)
+    return list(detected_objects_set)
 
-    # Determine cheating status
-    cheating = (
-        tab_switch_count > 0
-        or gaze_count > 100
-        or any(obj in detected_objects for obj in ["cell phone", "book", "multiple_person"])
-    )
+def report_page(request, student_id):
+    student = get_object_or_404(Student, id=student_id)
+    exam = student.exams.first()  # Or however you want to choose the exam
+    cheating_events = CheatingEvent.objects.filter(student=student)
 
-    # Process audio files (convert bytes to base64 for playback)
-    audio_files = []
-    for audio in cheating_audios:
-        if audio.audio:
-            with open(audio.audio.path, "rb") as audio_file:
-                audio_base64 = base64.b64encode(audio_file.read()).decode("utf-8")
-                audio_files.append({
-                    "id": audio.id,
-                    "base64": audio_base64,
-                    "timestamp": audio.timestamp,
-                })
+    # Aggregate detected objects as a list
+    detected_objects_list = get_detected_objects_string(cheating_events)
+    detected_objects_str = ", ".join(detected_objects_list) if detected_objects_list else "No objects detected"
 
-    # Prepare data for the template
+    # Sum up tab switch count from events
+    total_tab_switch_count = cheating_events.aggregate(total=Sum('tab_switch_count'))['total'] or 0
+
+    # Audio files: if you're using a FileField, Django automatically converts the stored file path
+    # into a URL via the `.url` attribute once media is configured correctly.
+    cheating_audios = CheatingAudio.objects.filter(event__student=student)
+    audio_urls = [audio.audio.url for audio in cheating_audios if audio.audio]
+
     context = {
         'student': student,
         'exam': exam,
-        'cheating': cheating,
-        'tab_switch_count': tab_switch_count,
-        'gaze_count': gaze_count,
-        'detected_objects': detected_objects,
-        'detected_objects_count': sum(detected_objects.values()),
-        'cheating_images': cheating_images,
-        'audio_files': audio_files,
-        'cheating_events': cheating_events,
+        'detected_objects': detected_objects_str,
+        'total_tab_switch_count': total_tab_switch_count,
+        # You can also add correct answer attempt and total questions:
+        'correct_answers': exam.correct_answers,
+        'total_questions': exam.total_questions,
+        'cheating_status': any(
+            event.event_type in ['object_detected', 'multiple_faces_detected', 'tab_switch']
+            for event in cheating_events
+        ),
+        'cheating_images': [
+            {
+                'url': img.image.url,
+                'event_type': img.event.event_type,
+                'timestamp': img.timestamp
+            }
+            for img in CheatingImage.objects.filter(event__student=student)
+        ],
+        'audio_urls': audio_urls,
+        'cheating_events': cheating_events,  # if you need to list them
     }
-
     return render(request, 'report_page.html', context)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+from django.http import HttpResponse
+from django.template.loader import get_template
+from xhtml2pdf import pisa
+from django.shortcuts import get_object_or_404
+from .models import Student, Exam
+
+def download_report(request, student_id):
+    student = get_object_or_404(Student, id=student_id)
+    exam = Exam.objects.filter(student=student).last()  # Assuming latest exam
+
+    template_path = 'report_template.html'
+    context = {
+        'student': student,
+        'exam': exam,
+        'total_questions': exam.total_questions,
+        'correct_answers': exam.correct_answers,
+        'detected_objects': exam.detected_objects,
+        'cheating_status': exam.cheating_status,
+        'total_tab_switch_count': exam.total_tab_switch_count,
+        'cheating_images': exam.cheating_images.all(),
+        'audio_urls': exam.detect
+    }

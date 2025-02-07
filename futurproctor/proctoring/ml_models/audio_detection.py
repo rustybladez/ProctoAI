@@ -2,7 +2,7 @@ import pyaudio
 import wave
 import numpy as np
 import time
-from datetime import datetime
+from threading import Thread
 
 # Parameters
 THRESHOLD = 2000  # Adjust based on environment
@@ -20,21 +20,12 @@ stream = p.open(format=FORMAT,
                 input=True,
                 frames_per_buffer=CHUNK)
 
-def save_audio(frames):
-    """Save recorded audio as a WAV file with a unique timestamp."""
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"recorded_audio_{timestamp}.wav"
-    wf = wave.open(filename, 'wb')
-    wf.setnchannels(CHANNELS)
-    wf.setsampwidth(p.get_sample_size(FORMAT))
-    wf.setframerate(RATE)
-    wf.writeframes(b''.join(frames))
-    wf.close()
-    print(f"Saved: {filename}")
-    return filename
+def record_segment(frames):
+    """Converts audio frames to bytes."""
+    return b''.join(frames)
 
 def audio_detection():
-    """Detects speech and saves it as an audio file."""
+    """Detects speaking and returns audio segments during speaking."""
     print("Monitoring for speech during the exam...")
     sound_detected = False
     last_sound_time = 0
@@ -51,14 +42,20 @@ def audio_detection():
                     print("Speaking detected, starting recording...")
                     sound_detected = True
                 last_sound_time = time.time()
+
+                # Collect audio frames for this segment
                 frames.append(data)
 
-            # If sound stops for SOUND_END_DELAY, save the recording
+            # If sound stops for SOUND_END_DELAY, return the recording
             if sound_detected and (time.time() - last_sound_time > SOUND_END_DELAY):
-                print("Speaking stopped, saving audio...")
-                save_audio(frames)
-                frames = []
+                print("Speaking stopped, returning recording...")
+                audio_bytes = record_segment(frames)  # Get audio data as bytes
+                frames = []  # Reset frames for the next segment
                 sound_detected = False
+                return {
+                    "audio_detected": True,
+                    "audio_data": audio_bytes
+                }
 
         except KeyboardInterrupt:
             break
@@ -67,7 +64,7 @@ def audio_detection():
     stream.stop_stream()
     stream.close()
     p.terminate()
-
-# # Run the detection
-# if __name__ == "__main__":
-#     audio_detection()
+    return {
+        "audio_detected": False,
+        "audio_data": None
+    }
