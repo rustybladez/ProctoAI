@@ -371,7 +371,7 @@ def process_audio(request):
     """Continuously process audio for cheating detection."""
     global last_audio_detected_time, warning
 
-    while True:
+    while not stop_event.is_set():  # Check if stop_event is triggered
         audio = audio_detection()
         if audio["audio_detected"]:
             warning = "ALERT: Suspicious audio detected!"
@@ -386,7 +386,11 @@ def process_audio(request):
         if time.time() - last_audio_detected_time > 5:
             warning = None
 
-        time.sleep(2)
+        time.sleep(2)  # Avoid excessive CPU usage
+
+    print("Audio processing stopped.")  # Debugging to confirm the thread exits
+
+
 
 # Background processing for video
 def background_processing(request):
@@ -520,7 +524,6 @@ def submit_exam(request):
         # Stop the background threads
         global stop_event
         stop_event.set()
-
         user = request.user
 
         # Load questions from ai.json
@@ -573,18 +576,18 @@ def record_tab_switch(request):
         student = request.user.student
         logger.info(f"Student: {student}")
 
-        # Get the active exam for the student
-        active_exam = Exam.objects.filter(student=student, status='ongoing').first()
-        if not active_exam:
-            logger.error("No active exam found for the student")
-            return JsonResponse({"error": "No active exam found for the student"}, status=400)
+        # # Get the active exam for the student
+        # active_exam = Exam.objects.filter(student=student, status='ongoing').first()
+        # if not active_exam:
+        #     logger.error("No active exam found for the student")
+        #     return JsonResponse({"error": "No active exam found for the student"}, status=400)
 
-        logger.info(f"Active Exam: {active_exam}")
+        # logger.info(f"Active Exam: {active_exam}")
 
         # Get or create a CheatingEvent for the student and exam
         cheating_event, created = CheatingEvent.objects.get_or_create(
             student=student,
-            exam=active_exam,
+            # exam=active_exam,
             event_type='tab_switch',  # Specify the event type
             defaults={
                 'cheating_flag': False,

@@ -80,7 +80,7 @@ WSGI_APPLICATION = 'futurproctor.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'proctoring_database',
+        'NAME': 'proctoring_db',
         'USER': 'postgres',
         'PASSWORD': 'ram123',
         'HOST': 'localhost',
