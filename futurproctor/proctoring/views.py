@@ -312,14 +312,19 @@ def dashboard(request):
 
 
 # -------------------------Video Detection Thread----------------------------------
-
 from django.utils import timezone
+import pytz
+
 # Define Nepal Time Zone
 NEPAL_TZ = pytz.timezone('Asia/Kathmandu')
 
 # Helper function to get Nepal time
 def get_nepal_time():
     return timezone.now().astimezone(NEPAL_TZ)
+
+def get_nepal_time_str():
+    return get_nepal_time().strftime('%Y-%m-%d %I:%M:%S %p %Z')
+
 
 logger = logging.getLogger(__name__)
 
@@ -602,7 +607,7 @@ def record_tab_switch(request):
         logger.info(f"Updated Tab Switch Count: {cheating_event.tab_switch_count}")
 
         # Set cheating_flag based on tab_switch_count
-        cheating_event.cheating_flag = cheating_event.tab_switch_count > 0
+        cheating_event.cheating_flag = cheating_event.tab_switch_count >= 1
         logger.info(f"Cheating Flag: {cheating_event.cheating_flag}")
 
         # Save the updated CheatingEvent
@@ -612,9 +617,11 @@ def record_tab_switch(request):
         # If tab switches exceed 5, take action
         if cheating_event.tab_switch_count > 5:
             stop_event.set()  # Stop background threads (ensure stop_event is defined)
-            logger.info("Tab switches exceeded 5, stopping exam")
-            return redirect('home')  # Redirect to home page
-
+            logger.info("Tab switches exceeded 5, terminated from the exam")
+            return JsonResponse({
+                "status": "terminated",
+                "message": "You have exceeded the allowed tab switches. Your exam is terminated."
+            }, status=200)
         # Return a JSON response with the updated count and flag
         return JsonResponse({
             "status": "updated",

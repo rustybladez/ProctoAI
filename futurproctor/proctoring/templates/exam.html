@@ -183,37 +183,62 @@
       }
     });
 
-    // Enter fullscreen mode
-    document.documentElement.requestFullscreen();
-
-    // Tab Switching Detection
-    let tabSwitchCount = {{ tab_count }};
-    document.addEventListener("visibilitychange", () => {
-      if (document.hidden) {
-        tabSwitchCount++;
-        document.getElementById("tab-count").textContent = tabSwitchCount;
-
-        fetch("{% url 'record_tab_switch' %}", {
-          method: "POST",
-          headers: { "X-CSRFToken": "{{ csrf_token }}" },
-        });
-
-        if (tabSwitchCount >= 5) {
-          alert("You have been eliminated due to excessive tab switching.");
-          document.getElementById("exam-form").submit();
+    
+      // Enter fullscreen mode
+      document.documentElement.requestFullscreen();
+    
+      // Initialize the tab switch count (defaulting to 0 if not provided)
+      let tabSwitchCount = {{ tab_count|default:0 }};
+      
+      // Keep track of the previous visibility state
+      let lastVisibilityState = document.visibilityState;
+    
+      // Define the tab switch handler
+      function tabSwitchHandler() {
+        // Only count a switch if the page goes from 'visible' to 'hidden'
+        if (lastVisibilityState === 'visible' && document.visibilityState === 'hidden') {
+          tabSwitchCount++;
+          document.getElementById("tab-count").textContent = tabSwitchCount;
+    
+          // Send a POST request to record the tab switch
+          fetch("{% url 'record_tab_switch' %}", {
+            method: "POST",
+            headers: { "X-CSRFToken": "{{ csrf_token }}" },
+          })
+          .then(response => response.json())
+          .then(data => {
+             // If termination condition is met, alert and redirect (or submit termination logic)
+             if (data.status === "terminated") {
+               alert(data.message);
+               // Redirect to a termination page or home (ensure you have this URL configured)
+               window.location.href = "{% url 'exam_submission_success' %}";
+             } else {
+               // Optionally alert on each tab switch when exam is ongoing
+               if (tabSwitchCount >= 1) {
+                 alert("Warning: Tab switch detected! Total switches: " + tabSwitchCount);
+               }
+             }
+          })
+          .catch(error => console.error('Error:', error));
         }
+        // Update the last known visibility state
+        lastVisibilityState = document.visibilityState;
       }
-    });
-
-    // Prevent Tab Closing
-    window.onbeforeunload = function () {
-      return "You are in the middle of an exam! Are you sure you want to leave?";
-    };
-
-    // Disable the warning when submitting
-    document.getElementById("exam-form").addEventListener("submit", function () {
-      window.onbeforeunload = null; // Remove warning
-    });
-  </script>
+    
+      // Listen for visibility changes
+      document.addEventListener("visibilitychange", tabSwitchHandler);
+    
+      // Prevent accidental closing or refreshing of the exam page
+      window.onbeforeunload = function () {
+        return "You are in the middle of an exam! Are you sure you want to leave?";
+      };
+    
+      // When the exam is submitted, remove the event listener and onbeforeunload warning
+      document.getElementById("exam-form").addEventListener("submit", function () {
+        window.onbeforeunload = null;
+        document.removeEventListener("visibilitychange", tabSwitchHandler);
+      });
+    </script>
+    
 </body>
 </html>

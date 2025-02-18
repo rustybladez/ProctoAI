@@ -4,13 +4,19 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 import pytz
 from django.core.files.base import ContentFile
-
+from django.utils import timezone
+import pytz
+from datetime import datetime  
 
 # Define Nepal Time Zone
 NEPAL_TZ = pytz.timezone('Asia/Kathmandu')
 
+# Helper function to get Nepal time
 def get_nepal_time():
     return timezone.now().astimezone(NEPAL_TZ)
+
+def get_nepal_time_str():
+    return get_nepal_time().strftime('%Y-%m-%d %I:%M:%S %p %Z')
 
 class Student(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='student', null=True, blank=True)
@@ -19,7 +25,7 @@ class Student(models.Model):
     email = models.EmailField(unique=True)
     photo = models.ImageField(upload_to='student_photos/')
     face_encoding = models.JSONField(null=True, blank=True)
-    timestamp = models.DateTimeField(default=timezone.now)
+    timestamp = models.DateTimeField(default=datetime.now())
     feedback = models.TextField(null=True, blank=True, max_length=1000)
 
     def __str__(self):
@@ -30,7 +36,7 @@ class Exam(models.Model):
     exam_name = models.CharField(max_length=255, default='Default Exam Name')
     total_questions = models.IntegerField(null=True, blank=True)
     correct_answers = models.IntegerField(null=True, blank=True)
-    timestamp = models.DateTimeField(default=timezone.now)
+    timestamp = models.DateTimeField(default=datetime.now())
     status = models.CharField(
         max_length=50,
         choices=[('ongoing', 'Ongoing'), ('completed', 'Completed'), ('cancelled', 'Cancelled')],
@@ -59,16 +65,16 @@ class CheatingEvent(models.Model):
     cheating_flag = models.BooleanField(default=False)
     event_type = models.CharField(max_length=50, blank=True, null=True)
     # Use a single timestamp field. Here we use Nepal time.
-    timestamp = models.DateTimeField(default=get_nepal_time)
+    timestamp = models.DateTimeField(default=datetime.now())
     detected_objects = models.JSONField(default=list)
     tab_switch_count = models.IntegerField(default=0)
 
 class CheatingImage(models.Model):
     event = models.ForeignKey(CheatingEvent, on_delete=models.CASCADE, related_name='cheating_images')
     image = models.ImageField(upload_to='cheating_images/')
-    timestamp = models.DateTimeField(auto_now_add=True)
+    timestamp = models.DateTimeField(default=datetime.now())
 
 class CheatingAudio(models.Model):
     event = models.ForeignKey(CheatingEvent, on_delete=models.CASCADE, related_name='cheating_audios')
     audio = models.FileField(upload_to='cheating_audios/', blank=True, null=True)
-    timestamp = models.DateTimeField(auto_now_add=True)
+    timestamp = models.DateTimeField(default=datetime.now())

@@ -118,6 +118,6 @@ def detectObject(frame, confidence_threshold=CONFIDENCE_THRESHOLD, resize_width=
 #         if cv2.waitKey(1) & 0xFF == ord('q'):
 #             break
 
-#     cap.release(
+#     cap.release()
 #     cv2.destroyAllWindows()
 #     logging.info("Object detection stopped.")

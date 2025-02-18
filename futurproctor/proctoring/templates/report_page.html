@@ -77,7 +77,7 @@
           <p class="text-success">No Cheating Detected</p>
         {% endif %}
         <p><strong>Total Tab Switches:</strong>
-            {% if total_tab_switch_count > 0 %}
+            {% if total_tab_switch_count >= 1 %}
               <span class="cheating-incident">{{ total_tab_switch_count }} (Suspicious Activity)</span>
             {% else %}
               {{ total_tab_switch_count }}
