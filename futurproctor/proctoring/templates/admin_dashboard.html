@@ -19,7 +19,7 @@
     <!-- Navigation Panel -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary p-3">
         <div class="container-fluid">
-            <a class="navbar-brand" href="#">FuturProctor</a>
+            <a class="navbar-brand" href="#">AI-Based Online Exam Proctoring System</a>
             <div class="d-flex ms-auto">
                 <a href="{% url 'home' %}" class="btn btn-outline-danger">Logout</a>
             </div>
@@ -35,7 +35,7 @@
                         <a class="nav-link text-dark" href="#">Dashboard</a>
                     </li>
                     <li class="nav-item mb-2">
-                        <a class="nav-link text-dark" href="#">View Questions</a>
+                        <a class="btn btn-primary" href="{% url 'add_question' %}">Add Question</a>
                     </li>
                 </ul>
             </div>

@@ -2,7 +2,7 @@ from django.urls import path
 from . import views
 from django.conf import settings
 from django.conf.urls.static import static
-from .views import home, registration,login,video_feed,dashboard,exam_submission_success,exam,submit_exam,result,record_tab_switch,get_warning
+from .views import home, registration,login,video_feed,dashboard,exam_submission_success,exam,submit_exam,result,record_tab_switch,get_warning,add_question
 from django.conf import settings
 from django.conf.urls.static import static
 
@@ -24,6 +24,7 @@ urlpatterns = [
     path('report_page/<int:student_id>/', views.report_page, name='report_page'),
     path('logout/',views.logout, name='logout'),
     path('download_report/<int:student_id>/', views.download_report, name='download_report'),
+    path('admin_dashboard/add_question/', add_question, name='add_question'),
 
     
     # path("proctoring_report/", views.proctoring_report, name="proctoring_report")

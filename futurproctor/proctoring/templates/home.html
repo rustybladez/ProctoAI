@@ -1,129 +1,20 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    {% load static %}
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FutureProctor - Home</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        /* Global Styles */
-        body {
-            background-color: #f3f4f6; /* Light grey background */
-            font-family: 'Arial', sans-serif;
-        }
-
-        /* Navbar */
-        .navbar-brand img {
-            height: 120px; /* Logo size */
-        }
-
-        .btn-active {
-            background-color: #0d6efd !important; /* Blue color (matches btn-primary) */
-            color: white !important;
-        }
-
-        /* Hero Section */
-        .hero-section {
-            background-color: #ffffff; /* White background for contrast */
-            padding: 50px 30px;
-            border-radius: 15px;
-            text-align: center;
-            box-shadow: 0px 6px 10px rgba(0, 0, 0, 0.1);
-            margin-top: 40px;
-            margin-bottom: 40px;
-            font-family: 'Arial', sans-serif;
-        }
-
-        .hero-section h1 {
-            font-size: 3rem; /* Larger title */
-            font-weight: bold;
-            color: #0d6efd; /* Bootstrap primary color */
-        }
-
-        .hero-section p {
-            font-size: 1.2rem;
-            margin-top: 20px;
-            line-height: 1.8;
-        }
-
-        .hero-section .btn {
-            margin-top: 20px;
-        }
-
-        /* Rules and Features Section */
-        .section-container {
-            background-color: #ffffff;
-            padding: 30px;
-            border-radius: 10px;
-            margin-top: 30px;
-            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .section-container h2 {
-            font-size: 2.5rem;
-            font-weight: bold;
-            color: #0d6efd; /* Bootstrap primary color */
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        .section-container p {
-            font-size: 1.1rem;
-            line-height: 1.8;
-            color: #333; /* Darker text for readability */
-        }
-
-        .section-container ul {
-            list-style: disc inside;
-        }
-
-        .section-container ul li {
-            font-size: 1.1rem;
-            margin: 5px 0;
-        }
-
-        /* Features Section */
-        .features h5 {
-            font-weight: bold;
-            color: #6c757d; /* Secondary color */
-        }
-
-        .features p {
-            color: #6c757d; /* Text-muted color */
-        }
-
-        /* Testimonials Section */
-        .testimonials .card {
-            border: none;
-            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .testimonials .card img {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            margin: 0 auto;
-            margin-top: -40px;
-        }
-
-        /* Footer */
-        footer {
-            background: #343a40;
-            color: #ffffff;
-            text-align: center;
-            padding: 20px;
-            margin-top: 40px;
-        }
-    </style>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
 </head>
 <body>
     <!-- Navigation Bar -->
     <nav class="navbar navbar-expand-lg navbar-light bg-light shadow">
         <div class="container">
             <a class="navbar-brand" href="#">
-                <img src="{% static 'images/logo.png' %}" alt="FuturProctor Logo"> 
+                <img src="{% static 'images\monitor_logo.png' %}" alt="FutureProctor Logo" class="logo">
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -139,138 +30,188 @@
             </div>
         </div>
     </nav>
-
-    <!-- Hero Section -->
-    <div class="container hero-section">
-        <h1>Welcome to FutureProctor!</h1>
-        <p>
-            <b>
-                FutureProctor is an <span style="background-color: yellow;">AI-powered</span> inbrowser <span style="background-color: yellow;">proctoring</span> platform designed to ensure fair and secure online exams. It uses advanced machine learning models to detect <span style="background-color: yellow;">cheating</span> activities such as the presence of <span style="background-color: yellow;">Cell phone</span>, <span style="background-color: yellow;">books</span>, <span style="background-color: yellow;">multiple faces</span>, and unauthorized <span style="background-color: yellow;">sounds</span>. With real-time monitoring and automated reporting, it empowers educators with actionable insights effortlessly. With seamless functionality and robust privacy, FutureProctor redefines <span style="background-color: yellow;">exam integrity</span> with cutting-edge technology.
-            </b>
-        </p>
-        <a href="#" class="btn btn-primary btn-lg">Learn More</a>
-        <a href="{% url 'registration' %}" class="btn btn-secondary btn-lg ms-3">Register Now</a>
-    </div>
-
-    <!-- Rules and Regulations Section -->
-    <div class="container section-container">
-        <h2>How to Use FutureProctor</h2>
-        <p>Follow these steps for a smooth experience:</p>
-        <ul>
-            <li>Login: Sign in using your registered credentials..</li>
-            <li>System Check: Ensure your webcam, microphone, and internet connection are working properly.</li>
-            <li>Start Exam: Begin the proctoring process by clicking "Start Exam."</li>
-            <li>Real-Time Monitoring: Allow monitoring through your webcam and microphone.</li>
-            <li>Submit Exam: Submit your answers once finished, and the system will generate a report.</li>
-        </ul>
-    </div>
-
-    <!-- System Requirements -->
-    <div class="container section-container">
-        <h2>System Requirements</h2>
-        <p>Ensure your system meets the following requirements:</p>
-        <ul>
-            <li>Device: Laptop or Desktop (not supported on mobile devices).</li>
-            <li>Browser: Latest version of Chrome or Firefox.</li>
-            <li>Operating System: Windows 10 or macOS 10.13 or later.</li>
-            <li>Internet Speed: Minimum 2 Mbps for smooth performance.</li>
-            <li>Webcam & Microphone: Integrated or external required.</li>
-        </ul>
-    </div>
-
-    <!-- FAQs -->
-    <div class="container section-container">
-        <h2>FAQs</h2>
-        <p>Common questions about FutureProctor:</p>
-        <ul>
-            <li><b>Q:</b> What if my internet drops during the exam? <b>A:</b> The system will attempt to reconnect automatically.</li>
-            <li><b>Q:</b> Can I use this on a smartphone? <b>A:</b> Currently, only laptops and desktops are supported.</li>
-            <li><b>Q:</b> How does FutureProctor ensure privacy? <b>A:</b> Your data is securely processed and used only for examination purposes.</li>
-        </ul>
-    </div>
-
-    <!-- Features Section -->
-    <div class="container section-container features">
-        <h2>Why Choose FutureProctor?</h2>
-        <div class="row text-center">
-            <div class="col-md-4">
-                <i class="fas fa-shield-alt fa-3x text-primary"></i>
-                <h5>Enhanced Security</h5>
-                <p>Ensure exam integrity with advanced AI algorithms.</p>
+    <main class="hero-section">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-6">
+                    <h1 class="display-4">AI-Based Online Exam Proctoring System</h1>
+                    <h2 class="mb-4">A Proctoring System Powered by Artificial Intelligence!</h2>
+                    <div class="cta-buttons">
+                        <a href="https://youtu.be/ANncDcqR1go" class="btn btn-primary btn-lg me-3">Watch Promo Video</a>
+                        {% comment %} <a href="#" class="btn btn-outline-primary btn-lg">Detailed Presentation</a> {% endcomment %}
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="hero-image-container">
+                        <img src="{% static 'images/ai-procotor.png' %}" alt="AI Proctor Dashboard" class="img-fluid floating-image">
+                    </div>
+                </div>
             </div>
-            <div class="col-md-4">
-                <i class="fas fa-video fa-3x text-primary"></i>
-                <h5>Real-Time Monitoring</h5>
-                <p>Monitor video and audio for a fair exam environment.</p>
+        </div>
+    </main>
+    {% load static %}
+<section class="ai-proctor-features">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <div class="ai-proctor-illustration">
+                    <img src="{% static 'images/ai-sec.png' %}" alt="AI Proctor Illustration" class="img-fluid ai-head-image">
+                    <div class="ai-head-graphic">
+                        <div class="ai-text">AI</div>
+                        <div class="circuit-lines"></div>
+                        <div class="floating-dots"></div>
+                    </div>
+                </div>
             </div>
-            <div class="col-md-4">
-                <i class="fas fa-bolt fa-3x text-primary"></i>
-                <h5>Seamless Experience</h5>
-                <p>Enjoy a user-friendly interface and fast performance.</p>
+            <div class="col-lg-6">
+                <div class="features-content">
+                    <h2 class="section-title">AI-Based Online Exam Proctoring System</h2>
+                    <h3 class="section-subtitle">A Necessary Ingredient for Credible Online Certificates!</h3>
+                    <ul class="features-list">
+                        <li>Ensures credibility of exams results</li>
+                        <li>Very easy to use by both instructors and students</li>
+                        <li>Works with any examination portal!</li>
+                        <li>Minimal traffic to work even with weak internet connections</li>
+                        <li>Real time monitoring and detailed final reports for all suspicious activities by students</li>
+                        <li>Uses face recognition, audio analysis to ensure in class exam similar experience</li>
+                        <li>And many other practical features ...</li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
+</section>
 
-    <!-- Testimonials Section -->
-    <div class="container section-container testimonials">
-        <h2>What Our Users Say</h2>
+{% load static %}
+<section class="advanced-features-section">
+    <div class="container">
         <div class="row">
-            <div class="col-md-4">
-                <div class="card text-center p-3">
-                    <img src="{% static 'D:\Futurproctor\futurproctor\static\images\EXAM_PHOTO.jpg' %}" class="card-img-top" alt="User 1">
-                    <div class="card-body">
-                        <h5 class="card-title">Ram</h5>
-                        <p class="card-text">"FutureProctor made our online exams secure and hassle-free. Highly recommended!"</p>
+            <div class="col-12 text-center mb-5">
+                <h2 class="section-title">Advanced Proctoring Features</h2>
+                <p class="section-subtitle">Comprehensive Monitoring for Exam Integrity</p>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4 mb-4">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <img src="{% static 'images/facial.png' %}" alt="Browser Tab Detection" class="img-fluid">
                     </div>
+                    <h3>Face verification</h3>
+                    <p>The System opens the exam only after facial verification. The student uploads his picture during registration, and it is used in all his exams to make sure he doesn't leave the examination place.</p>
                 </div>
             </div>
-            <div class="col-md-4">
-                <div class="card text-center p-3">
-                    <img src="{% static 'D:\Futurproctor\futurproctor\static\images\IMG20240722075702.jpg' %}" class="card-img-top" alt="User 2">
-                    <div class="card-body">
-                        <h5 class="card-title">Jane Smith</h5>
-                        <p class="card-text">"The real-time monitoring feature is a game-changer for educators."</p>
+            <div class="col-md-4 mb-4">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <img src="{% static 'images/touch.png' %}" alt="Browser Tab Detection" class="img-fluid">
                     </div>
+                    <h3>Browser Tab Switching Detection</h3>
+                    <p>This system will monitor tab switching and flag any unauthorized attempts during the exam.</p>
                 </div>
             </div>
-            <div class="col-md-4">
-                <div class="card text-center p-3">
-                    <img src="{% static 'D:\Futurproctor\futurproctor\static\images\White And Black Modern Abstract Beauty Logo.png' %}" class="card-img-top" alt="User 3">
-                    <div class="card-body">
-                        <h5 class="card-title">Mike Johnson</h5>
-                        <p class="card-text">"Easy to use and highly effective. Great tool for online assessments."</p>
+            <div class="col-md-4 mb-4">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <img src="{% static 'images/object.png' %}" alt="Object Detection" class="img-fluid">
                     </div>
+                    <h3>Object Detection</h3>
+                    <p>This system will detect unauthorized objects like books and smartphones during the exam.</p>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <img src="{% static 'images/eye.png' %}" alt="Gaze Detection" class="img-fluid">
+                    </div>
+                    <h3>Gaze Detection</h3>This system will detect gaze movement to ensure candidates stay focused on the exam screen.</p>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <img src="{% static 'images/mp.png' %}" alt="Multiple Person Detection" class="img-fluid">
+                    </div>
+                    <h3>Multiple Person Detection</h3>This system will detect the presence of multiple individuals during the exam to ensure proper authentication.</p>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <img src="{% static 'images/audio.png' %}" alt="Audio Analysis" class="img-fluid">
+                    </div>
+                    <h3>Audio Analysis</h3>
+                    <p>This system will record and analyze background sounds to detect any suspicious noises during the exam.</p>
+            </div>
+            
+        </div>
+        <div class="row mt-4">
+            <div class="col-12 text-center">
+                <p class="data-storage-note">
+                    <strong>Secure Data Management:</strong> All collected data is securely stored in PostgreSQL for comprehensive review and reporting.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Contact Section -->
+<section class="contact-section">
+    <div class="container">
+        <div class="row">
+            <div class="col-12 text-center mb-5">
+                <h2 class="section-title">Contact Us</h2>
+                <p class="section-subtitle">Get in Touch for More Information</p>
+            </div>
+        </div>
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <form class="contact-form">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <input type="text" class="form-control" placeholder="Your Name" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <input type="email" class="form-control" placeholder="Your Email" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <input type="text" class="form-control" placeholder="Subject" required>
+                    </div>
+                    <div class="mb-3">
+                        <textarea class="form-control" rows="5" placeholder="Your Message" required></textarea>
+                    </div>
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-primary btn-lg">Send Message</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer text-center py-4">
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+                <p>&copy; 2025 AI Proctor. All Rights Reserved.</p>
+                <div class="footer-links">
+                    <a href="#">Privacy Policy</a>
+                    <a href="#">Terms of Service</a>
+                    <a href="#">Contact</a>
+                </div>
+                <div class="social-links mt-3">
+                    <a href="https://www.facebook.com/ramdular077" class="text-light mx-2"><i class="fab fa-facebook-f"></i></a>
+                    <a href="https://x.com/Ram103888" class="text-light mx-2"><i class="fab fa-twitter"></i></a>
+                    <a href="https://www.linkedin.com/in/ram-dular-yadav-1611b0228/" class="text-light mx-2"><i class="fab fa-linkedin-in"></i></a>
+                    <a href="#" class="text-light mx-2"><i class="fab fa-instagram"></i></a>
                 </div>
             </div>
         </div>
     </div>
+</footer>
 
-    <!-- Contact Form -->
-    <div class="container section-container">
-        <h2>Contact Us</h2>
-        <form>
-            <div class="mb-3">
-                <label for="name" class="form-label">Name</label>
-                <input type="text" class="form-control" id="name" required>
-            </div>
-            <div class="mb-3">
-                <label for="email" class="form-label">Email</label>
-                <input type="email" class="form-control" id="email" required>
-            </div>
-            <div class="mb-3">
-                <label for="message" class="form-label">Message</label>
-                <textarea class="form-control" id="message" rows="5" required></textarea>
-            </div>
-            <button type="submit" class="btn btn-primary">Submit</button>
-        </form>
-    </div>
-
-    <!-- Footer -->
-    <footer>
-        <p>&copy; 2025 FutureProctor. All rights reserved.</p>
-    </footer>
-
-    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -851,3 +851,7 @@ def download_report(request, student_id):
         return HttpResponse('We had some errors while generating the PDF', status=500)
     
     return response
+
+
+def add_question(request):
+    return render(request, 'add_question.html')  # Ensure you have this template
