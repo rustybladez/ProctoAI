@@ -16,7 +16,7 @@ The **AI-Based Online Exam Proctoring System** is a cutting-edge proctoring solu
 
 ## Tech Stack
 - **Backend**: Django 5.1.5 (Python-based web framework)
-- **Database**: MongoDB (for efficient data storage and retrieval)
+- **Database**: PostgressSQL(for efficient data storage and retrieval)
 - **Frontend**: HTML, CSS, JavaScript (with UI/UX inspired by provided images)
 - **AI Models**: OpenCV, MediaPipe (for face and object detection), custom ML models
 - **Authentication**: Django authentication system with face-matching capabilities
@@ -25,8 +25,8 @@ The **AI-Based Online Exam Proctoring System** is a cutting-edge proctoring solu
 ## Installation & Setup
 ### Prerequisites
 - Python 3.x
-- MongoDB installed and running
-- Node.js and npm (for frontend dependencies, if required)
+- Postgress SQL installed and running
+- 
 
 ### Steps
 1. **Clone the Repository**
