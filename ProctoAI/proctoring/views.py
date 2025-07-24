@@ -12,7 +12,6 @@ from django.utils.timezone import now  # Getting timezone-aware current time
 from django.core.files.base import ContentFile  # Handling in-memory file storage
 import cv2
 import io
-from PIL import Image
 
 # Models
 from .models import Student, Exam, CheatingEvent, CheatingImage, CheatingAudio  # Importing custom models
@@ -39,20 +38,20 @@ from .ml_models.gaze_tracking import gaze_tracking # Tracking eye gaze to detect
 # Fix: Import face_recognition (Previously missing)
 import face_recognition  # Used for facial recognition, comparing student faces with stored images
 
-# Fix: Proper datetime handling for Nepal Time Zone (Asia/Kathmandu)
+# Fix: Proper datetime handling for Bangladesh Time Zone (Asia/Dhaka)
 import pytz  # For timezone handling
 from datetime import datetime  # Standard date and time handling
 
-# Define Nepal Time Zone
-NEPAL_TZ = pytz.timezone('Asia/Kathmandu')
+# Define Bangladesh Time Zone
+BD_TZ = pytz.timezone('Asia/Dhaka')
 
-# Function to get Nepal's current time
-def get_nepal_time():
-    """
-    Returns the current time in Nepal's timezone.
-    This ensures all timestamps are consistent with the local time.
-    """
-    return datetime.now(NEPAL_TZ)
+# Function to get Bangladesh's current time
+# def get_bd_time():
+#     """
+#     Returns the current time in Bangladesh's timezone.
+#     This ensures all timestamps are consistent with the local time.
+#     """
+#     return datetime.now(BD_TZ)
 
 
 # Home page view
@@ -315,15 +314,15 @@ def dashboard(request):
 from django.utils import timezone
 import pytz
 
-# Define Nepal Time Zone
-NEPAL_TZ = pytz.timezone('Asia/Kathmandu')
+# Define Bangladesh Time Zone
+BD_TZ = pytz.timezone('Asia/Kathmandu')
 
-# Helper function to get Nepal time
-def get_nepal_time():
-    return timezone.now().astimezone(NEPAL_TZ)
+# Helper function to get Bangladesh time
+def get_bd_time():
+    return timezone.now().astimezone(BD_TZ)
 
-def get_nepal_time_str():
-    return get_nepal_time().strftime('%Y-%m-%d %I:%M:%S %p %Z')
+def get_bd_time_str():
+    return get_bd_time().strftime('%Y-%m-%d %I:%M:%S %p %Z')
 
 
 logger = logging.getLogger(__name__)
@@ -501,7 +500,7 @@ def exam(request):
 
     # Load exam questions from the JSON file
     try:
-        with open("D://Futurproctor//futurproctor//proctoring//dummy_data//ai.json") as file:
+        with open("D:\\University\\Academic\\3.2\\3.2 Final Project\\ProctoAI\\ProctoAI\\proctoring\\dummy_data\\ai.json") as file:
             data = json.load(file)
         questions = data.get("questions", [])
     except FileNotFoundError:
@@ -533,7 +532,7 @@ def submit_exam(request):
 
         # Load questions from ai.json
         try:
-            with open('D:\\Futurproctor\\futurproctor\\proctoring\\dummy_data\\ai.json', 'r') as file:
+            with open("D:\\University\\Academic\\3.2\\3.2 Final Project\\ProctoAI\\ProctoAI\\proctoring\\dummy_data\\ai.json", 'r') as file:
                 data = json.load(file)
         except FileNotFoundError:
             return HttpResponse("Error: Questions file not found!", status=404)
