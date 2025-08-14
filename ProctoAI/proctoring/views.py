@@ -374,6 +374,11 @@ stop_event = threading.Event()  # To stop background threads
 
 """NO PERSON DETECTED FEATURE"""
 
+# Low-light detection thresholds (tunable)
+LOW_LIGHT_EVENT_THRESHOLD = 30       # face_mean (0-255) -> event threshold
+LOW_LIGHT_CONSECUTIVE = 2            # consecutive samples required before saving event
+
+
 def process_frame(frame, request):
     """Process a single frame for cheating detection."""
     global warning
@@ -381,11 +386,15 @@ def process_frame(frame, request):
 
     # 1) Face-based person detection (MediaPipe)
     try:
-        face_count, annotated_face_frame = detectFace(frame)
+        face_count, annotated_face_frame, brightness = detectFace(frame)
     except Exception as e:
         logger.error(f"Error running face detection: {e}")
         face_count = None
         annotated_face_frame = frame
+        brightness = {'frame_mean': None, 'frame_var': None, 'face_mean': None, 'face_var': None}
+
+    # Example: make brightness available for future logic or logging
+    logger.debug(f"Brightness metrics: {brightness}")
 
     # If no faces detected -> raise alert / save event
     if face_count == 0:
@@ -401,6 +410,53 @@ def process_frame(frame, request):
             logger.error(f"Error saving no-person cheating event: {e}")
         # Early return to avoid additional checks on an empty frame
         return
+    
+    # ------------------ LOW-LIGHT DETECTION (session counters + events) ------------------
+    # Choose the most relevant metric: face ROI mean if available, else whole-frame mean
+    metric = None
+    try:
+        metric = brightness.get('face_mean') if brightness.get('face_mean') is not None else brightness.get('frame_mean')
+    except Exception:
+        metric = None
+
+    if metric is not None:
+        sess = request.session
+        low_count = sess.get('low_light_count', 0)
+
+        # increment if below event threshold, else reset
+        if metric < LOW_LIGHT_EVENT_THRESHOLD:
+            low_count += 1
+        else:
+            low_count = 0
+
+        sess['low_light_count'] = low_count
+        sess.modified = True
+
+        # Soft warning while building up to an event
+        if 0 < low_count < LOW_LIGHT_CONSECUTIVE:
+            warning = "WARNING: Low ambient light detected. Please increase lighting."
+        elif low_count == 0:
+            # clear only our low-light warning
+            if warning and "Low ambient light" in warning:
+                warning = None
+
+        # When consecutive threshold reached -> persist event and evidence
+        if low_count >= LOW_LIGHT_CONSECUTIVE:
+            warning = f"ALERT: Low light detected (value {metric:.1f}) — evidence saved."
+            try:
+                cheating_event, _ = CheatingEvent.objects.get_or_create(
+                    student=request.user.student,
+                    cheating_flag=True,
+                    event_type="low_light"
+                )
+                save_cheating_event(frame, request, cheating_event, detected_objects=[])
+            except Exception as e:
+                logger.error(f"Error saving low-light cheating event: {e}")
+            # reset counter to avoid duplicate events for same incident
+            sess['low_light_count'] = 0
+            sess.modified = True
+
+    # -------------------------------------------------------------------------------------
 
     # 2) Object detection (phones/books/persons)
     labels, processed_frame, person_count, detected_objects = detectObject(frame)
