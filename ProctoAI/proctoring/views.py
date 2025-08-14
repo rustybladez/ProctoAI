@@ -33,6 +33,8 @@ from .ml_models.object_detection import detectObject  # Detecting objects in the
 from .ml_models.audio_detection import audio_detection  # Detecting external sounds for cheating detection
 from .ml_models.gaze_tracking import gaze_tracking # Tracking eye gaze to detect focus and distractions 
 
+from .ml_models.facial_detections import detectFace  # <-- ADDED: detect faces / count people
+
 # from .ml_models.gaze_tracking import gaze_tracking  # Tracking eye gaze to detect focus and distractions
 
 # Fix: Import face_recognition (Previously missing)
@@ -333,17 +335,81 @@ last_audio_detected_time = time.time()
 stop_event = threading.Event()  # To stop background threads
 
 # Function to process each frame
+# def process_frame(frame, request):
+#     """Process a single frame for cheating detection."""
+#     global warning
+#     labels, processed_frame, person_count, detected_objects = detectObject(frame)
+#     cheating_event = None
+
+#     # Extract object names
+#     detected_labels = [label for label, _ in labels]
+#     # Check for cheating conditions
+#     if any(label in ["cell phone", "book"] for label in detected_labels):
+#         warning = f"ALERT: {', '.join(detected_labels)} detected!"  # Corrected formatting
+#         cheating_event, _ = CheatingEvent.objects.get_or_create(
+#             student=request.user.student,
+#             cheating_flag=True,
+#             event_type="object_detected"
+#         )
+#         save_cheating_event(frame, request, cheating_event, detected_objects)
+
+#     if person_count > 1:
+#         warning = "ALERT: Multiple persons detected!"
+#         cheating_event, _ = CheatingEvent.objects.get_or_create(
+#             student=request.user.student,
+#             cheating_flag=True,
+#             event_type="multiple_persons"
+#         )
+#         save_cheating_event(frame, request, cheating_event, detected_objects)
+
+#     gaze = gaze_tracking(frame)
+#     if gaze["gaze"] != "center":
+#         warning = "ALERT: Candidate not looking at the screen!"
+#         cheating_event, _ = CheatingEvent.objects.get_or_create(
+#             student=request.user.student,
+#             cheating_flag=True,
+#             event_type="gaze_detected"
+#         )
+#         save_cheating_event(frame, request, cheating_event, detected_objects)
+
+"""NO PERSON DETECTED FEATURE"""
+
 def process_frame(frame, request):
     """Process a single frame for cheating detection."""
     global warning
-    labels, processed_frame, person_count, detected_objects = detectObject(frame)
     cheating_event = None
 
+    # 1) Face-based person detection (MediaPipe)
+    try:
+        face_count, annotated_face_frame = detectFace(frame)
+    except Exception as e:
+        logger.error(f"Error running face detection: {e}")
+        face_count = None
+        annotated_face_frame = frame
+
+    # If no faces detected -> raise alert / save event
+    if face_count == 0:
+        warning = "ALERT: No person detected in frame!"
+        try:
+            cheating_event, _ = CheatingEvent.objects.get_or_create(
+                student=request.user.student,
+                cheating_flag=True,
+                event_type="no_person_detected"
+            )
+            save_cheating_event(frame, request, cheating_event, detected_objects=[])
+        except Exception as e:
+            logger.error(f"Error saving no-person cheating event: {e}")
+        # Early return to avoid additional checks on an empty frame
+        return
+
+    # 2) Object detection (phones/books/persons)
+    labels, processed_frame, person_count, detected_objects = detectObject(frame)
     # Extract object names
     detected_labels = [label for label, _ in labels]
+
     # Check for cheating conditions
     if any(label in ["cell phone", "book"] for label in detected_labels):
-        warning = f"ALERT: {', '.join(detected_labels)} detected!"  # Corrected formatting
+        warning = f"ALERT: {', '.join(detected_labels)} detected!"
         cheating_event, _ = CheatingEvent.objects.get_or_create(
             student=request.user.student,
             cheating_flag=True,
@@ -369,6 +435,8 @@ def process_frame(frame, request):
             event_type="gaze_detected"
         )
         save_cheating_event(frame, request, cheating_event, detected_objects)
+
+"""NO PERSON DETECTED FEATURE END"""
 
 # Function to process audio
 def process_audio(request):
