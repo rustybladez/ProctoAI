@@ -44,8 +44,13 @@ import face_recognition  # Used for facial recognition, comparing student faces 
 import pytz  # For timezone handling
 from datetime import datetime  # Standard date and time handling
 
+from pathlib import Path
+
 # Define Bangladesh Time Zone
 BD_TZ = pytz.timezone('Asia/Dhaka')
+
+APP_DIR = Path(__file__).resolve().parent
+AI_JSON_PATH = APP_DIR / "dummy_data" / "ai.json"
 
 # Function to get Bangladesh's current time
 # def get_bd_time():
@@ -624,7 +629,7 @@ def exam(request):
 
     # Load exam questions from the JSON file
     try:
-        with open("D:\\University\\Academic\\3.2\\3.2 Final Project\\ProctoAI\\ProctoAI\\proctoring\\dummy_data\\ai.json") as file:
+        with open(AI_JSON_PATH, "r", encoding="utf-8") as file:
             data = json.load(file)
         questions = data.get("questions", [])
     except FileNotFoundError:
@@ -656,7 +661,7 @@ def submit_exam(request):
 
         # Load questions from ai.json
         try:
-            with open("D:\\University\\Academic\\3.2\\3.2 Final Project\\ProctoAI\\ProctoAI\\proctoring\\dummy_data\\ai.json", 'r') as file:
+            with open(AI_JSON_PATH, "r", encoding="utf-8") as file:
                 data = json.load(file)
         except FileNotFoundError:
             return HttpResponse("Error: Questions file not found!", status=404)
