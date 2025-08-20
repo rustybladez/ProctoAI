@@ -5,18 +5,17 @@ from django.utils import timezone
 import pytz
 from django.core.files.base import ContentFile
 from django.utils import timezone
-import pytz
 from datetime import datetime  
 
-# Define Nepal Time Zone
-NEPAL_TZ = pytz.timezone('Asia/Kathmandu')
+# Define BD Time Zone
+BD_TZ = pytz.timezone('Asia/Dhaka')
 
-# Helper function to get Nepal time
-def get_nepal_time():
-    return timezone.now().astimezone(NEPAL_TZ)
+# Helper function to get BD time
+def get_bd_time():
+    return timezone.now().astimezone(BD_TZ)
 
-def get_nepal_time_str():
-    return get_nepal_time().strftime('%Y-%m-%d %I:%M:%S %p %Z')
+def get_bd_time_str():
+    return get_bd_time().strftime('%Y-%m-%d %I:%M:%S %p %Z')
 
 class Student(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='student', null=True, blank=True)
@@ -64,7 +63,7 @@ class CheatingEvent(models.Model):
     )
     cheating_flag = models.BooleanField(default=False)
     event_type = models.CharField(max_length=50, blank=True, null=True)
-    # Use a single timestamp field. Here we use Nepal time.
+    # Use a single timestamp field. Here we use BD time.
     timestamp = models.DateTimeField(default=datetime.now())
     detected_objects = models.JSONField(default=list)
     tab_switch_count = models.IntegerField(default=0)

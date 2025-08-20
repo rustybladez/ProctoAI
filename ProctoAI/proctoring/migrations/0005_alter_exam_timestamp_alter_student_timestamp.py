@@ -14,11 +14,11 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='exam',
             name='timestamp',
-            field=models.DateTimeField(default=proctoring.models.get_nepal_time),
+            field=models.DateTimeField(default=proctoring.models.get_bd_time),
         ),
         migrations.AlterField(
             model_name='student',
             name='timestamp',
-            field=models.DateTimeField(default=proctoring.models.get_nepal_time),
+            field=models.DateTimeField(default=proctoring.models.get_bd_time),
         ),
     ]

@@ -34,7 +34,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='cheatingaudio',
             name='timestamp',
-            field=models.DateTimeField(default=proctoring.models.get_nepal_time),
+            field=models.DateTimeField(default=proctoring.models.get_bd_time),
         ),
         migrations.AlterField(
             model_name='cheatingevent',
@@ -44,11 +44,11 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='cheatingevent',
             name='timestamp',
-            field=models.DateTimeField(default=proctoring.models.get_nepal_time),
+            field=models.DateTimeField(default=proctoring.models.get_bd_time),
         ),
         migrations.AlterField(
             model_name='cheatingimage',
             name='timestamp',
-            field=models.DateTimeField(default=proctoring.models.get_nepal_time),
+            field=models.DateTimeField(default=proctoring.models.get_bd_time),
         ),
     ]

@@ -319,10 +319,9 @@ def dashboard(request):
 
 # -------------------------Video Detection Thread----------------------------------
 from django.utils import timezone
-import pytz
 
-# Define Bangladesh Time Zone
-BD_TZ = pytz.timezone('Asia/Kathmandu')
+
+
 
 # Helper function to get Bangladesh time
 def get_bd_time():
