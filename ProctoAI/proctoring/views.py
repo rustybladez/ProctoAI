@@ -213,6 +213,17 @@ def login(request):
                     request.session['student_id'] = student.id
                     request.session['student_name'] = student.name
 
+                    """
+                    STORE LOGIN FACE ENCODING
+                    """
+                    # Store the login-time face encoding for identity verification during exam
+                    try:
+                        request.session['reference_face_encoding'] = captured_encoding.tolist()
+                    except Exception:
+                        # Fallback: store student's saved encoding if conversion fails
+                        request.session['reference_face_encoding'] = student.face_encoding
+                    request.session.modified = True
+
                     # Return a success response with redirect URL and student name
                     return JsonResponse({
                         "success": True,
@@ -382,6 +393,10 @@ stop_event = threading.Event()  # To stop background threads
 LOW_LIGHT_EVENT_THRESHOLD = 30       # face_mean (0-255) -> event threshold
 LOW_LIGHT_CONSECUTIVE = 2            # consecutive samples required before saving event
 
+# Identity verification settings (tunable)
+IDENTITY_MATCH_TOLERANCE = 0.50      # face_recognition tolerance (lower = stricter)
+IDENTITY_CONSECUTIVE_MISMATCH = 2    # consecutive mismatches before saving event
+IDENTITY_CHECK_EVERY_N_FRAMES = 3    # run check every N frames to reduce CPU
 
 def process_frame(frame, request):
     """Process a single frame for cheating detection."""
@@ -459,6 +474,66 @@ def process_frame(frame, request):
             # reset counter to avoid duplicate events for same incident
             sess['low_light_count'] = 0
             sess.modified = True
+
+    # ------------------ IDENTITY VERIFICATION (session-based) ------------------
+    try:
+        sess = request.session
+        # throttle identity checks to reduce CPU
+        tick = sess.get('id_check_tick', 0) + 1
+        sess['id_check_tick'] = tick
+        sess.modified = True
+        if tick % IDENTITY_CHECK_EVERY_N_FRAMES == 0:
+            ref_enc = sess.get('reference_face_encoding')
+            # optional fallback to registered student encoding if session missing
+            if ref_enc is None:
+                try:
+                    ref_enc = request.user.student.face_encoding
+                except Exception:
+                    ref_enc = None
+
+            if ref_enc is not None:
+                # Extract current face encoding from the frame (first face)
+                current_enc = get_face_encoding(frame)
+                if current_enc is not None:
+                    is_same = face_recognition.compare_faces(
+                        [np.array(ref_enc)],
+                        current_enc,
+                        tolerance=IDENTITY_MATCH_TOLERANCE
+                    )[0]
+                    mismatch_count = sess.get('id_mismatch_count', 0)
+
+                    if not is_same:
+                        mismatch_count += 1
+                        # show soft warning while building up to event
+                        if mismatch_count < IDENTITY_CONSECUTIVE_MISMATCH:
+                            warning = "WARNING: Identity mismatch suspected. Please face the camera."
+                    else:
+                        # reset on match
+                        mismatch_count = 0
+                        if warning and "Identity mismatch suspected" in warning:
+                            warning = None
+
+                    sess['id_mismatch_count'] = mismatch_count
+                    sess.modified = True
+
+                    # if threshold reached -> save event and evidence
+                    if mismatch_count >= IDENTITY_CONSECUTIVE_MISMATCH:
+                        warning = "ALERT: Identity mismatch detected — evidence saved."
+                        try:
+                            cheating_event, _ = CheatingEvent.objects.get_or_create(
+                                student=request.user.student,
+                                cheating_flag=True,
+                                event_type="identity_mismatch"
+                            )
+                            save_cheating_event(frame, request, cheating_event, detected_objects=[])
+                        except Exception as e:
+                            logger.error(f"Error saving identity-mismatch event: {e}")
+                        # reset to avoid duplicates
+                        sess['id_mismatch_count'] = 0
+                        sess.modified = True
+    except Exception as e:
+        logger.debug(f"Identity verification error: {e}")
+    # -------------------------------------------------------------------------
 
     # -------------------------------------------------------------------------------------
 
