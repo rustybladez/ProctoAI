@@ -775,64 +775,85 @@ stop_event = threading.Event()
 # Set up logging
 logger = logging.getLogger(__name__)
 
+MAX_TAB_SWITCHES = 5
+
+@login_required
+def exam(request):
+    """Start the exam and initialize proctoring."""
+    try:
+        student = request.user.student
+    except Student.DoesNotExist:
+        return HttpResponse("Student profile not found. Please contact support.", status=404)
+
+    # Reset per-exam tab/window switch counters in session (authoritative)
+    request.session['tab_switch_count'] = 0
+    request.session['tab_switch_limit'] = MAX_TAB_SWITCHES
+    request.session.modified = True
+
+    # Load exam questions from the JSON file
+    try:
+        with open(AI_JSON_PATH, "r", encoding="utf-8") as file:
+            data = json.load(file)
+        questions = data.get("questions", [])
+    except FileNotFoundError:
+        return HttpResponse("Error: Questions file not found!", status=404)
+    except json.JSONDecodeError:
+        return HttpResponse("Error: Failed to parse the questions file!", status=400)
+
+    # Start background processing threads
+    global stop_event
+    stop_event.clear()
+    threading.Thread(target=background_processing, args=(request,), daemon=True).start()
+    threading.Thread(target=process_audio, args=(request,), daemon=True).start()
+
+    return render(request, 'exam.html', {
+        'questions': questions,
+        'warning': warning,
+        'tab_count': request.session.get('tab_switch_count', 0),
+        'tab_limit': request.session.get('tab_switch_limit', MAX_TAB_SWITCHES),  # <-- pass limit
+    })
+
 # Tab switch tracking View
+@csrf_exempt
 @login_required
 def record_tab_switch(request):
-    if request.method == "POST":
-        # Get the current student
-        student = request.user.student
-        logger.info(f"Student: {student}")
+    if request.method != "POST":
+        return JsonResponse({"error": "POST required"}, status=400)
 
-        # # Get the active exam for the student
-        # active_exam = Exam.objects.filter(student=student, status='ongoing').first()
-        # if not active_exam:
-        #     logger.error("No active exam found for the student")
-        #     return JsonResponse({"error": "No active exam found for the student"}, status=400)
+    # Authoritative session counter
+    sess = request.session
+    count = int(sess.get('tab_switch_count', 0)) + 1
+    sess['tab_switch_count'] = count
+    limit = int(sess.get('tab_switch_limit', MAX_TAB_SWITCHES))
+    sess.modified = True
 
-        # logger.info(f"Active Exam: {active_exam}")
+    # Optional: keep DB event log, but do NOT use it for enforcement
+    student = request.user.student
+    cheating_event, _ = CheatingEvent.objects.get_or_create(
+        student=student,
+        event_type='tab_switch',
+        defaults={'cheating_flag': False, 'tab_switch_count': 0},
+    )
+    # record history (not used for enforcement)
+    cheating_event.tab_switch_count = (cheating_event.tab_switch_count or 0) + 1
+    cheating_event.cheating_flag = True
+    cheating_event.save()
 
-        # Get or create a CheatingEvent for the student and exam
-        cheating_event, created = CheatingEvent.objects.get_or_create(
-            student=student,
-            # exam=active_exam,
-            event_type='tab_switch',  # Specify the event type
-            defaults={
-                'cheating_flag': False,
-                'tab_switch_count': 0,
-            }
-        )
-
-        logger.info(f"Cheating Event: {cheating_event}, Created: {created}")
-
-        # Increment the tab switch count
-        cheating_event.tab_switch_count += 1
-        logger.info(f"Updated Tab Switch Count: {cheating_event.tab_switch_count}")
-
-        # Set cheating_flag based on tab_switch_count
-        cheating_event.cheating_flag = cheating_event.tab_switch_count >= 1
-        logger.info(f"Cheating Flag: {cheating_event.cheating_flag}")
-
-        # Save the updated CheatingEvent
-        cheating_event.save()
-        logger.info("Cheating Event saved successfully")
-
-        # If tab switches exceed 5, take action
-        if cheating_event.tab_switch_count > 5:
-            stop_event.set()  # Stop background threads (ensure stop_event is defined)
-            logger.info("Tab switches exceeded 5, terminated from the exam")
-            return JsonResponse({
-                "status": "terminated",
-                "message": "You have exceeded the allowed tab switches. Your exam is terminated."
-            }, status=200)
-        # Return a JSON response with the updated count and flag
+    if count >= limit:
+        stop_event.set()
         return JsonResponse({
-            "status": "updated",
-            "count": cheating_event.tab_switch_count,
-            "cheating_flag": cheating_event.cheating_flag,
-            "message": f"Tab switch detected! Total switches: {cheating_event.tab_switch_count}"
+            "status": "terminated",
+            "message": "You have exceeded the allowed tab/window switches. Your exam is terminated.",
+            "count": count,
+            "limit": limit,
         }, status=200)
 
-    return JsonResponse({"error": "Invalid request"}, status=400)
+    return JsonResponse({
+        "status": "ok",
+        "message": f"Tab/window switch detected! Total switches: {count}",
+        "count": count,
+        "limit": limit,
+    }, status=200)
 
 
 # Exam submission success page
