@@ -183,128 +183,174 @@
     ></div> -->
     <div id="warning-alert" aria-live="polite" role="status"></div>
 
+    <style>
+      /* simple overlay to lock the UI after termination */
+      #exam-lock-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+        color: #fff;
+        z-index: 2000;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        text-align: center;
+        padding: 2rem;
+      }
+    </style>
+
+    <div id="exam-lock-overlay">Exam terminated. Redirecting…</div>
+
     <!-- ...existing code... -->
     <script>
-          // Timer Logic
-          let totalTime = 5 * 60; // 5 minutes in seconds
-          const timerElement = document.getElementById("time");
+                      // Timer Logic
+                      let totalTime = 5 * 60; // 5 minutes in seconds
+                      const timerElement = document.getElementById("time");
 
-          function startTimer() {
-            const timer = setInterval(() => {
-              const minutes = Math.floor(totalTime / 60);
-              const seconds = totalTime % 60;
-              timerElement.textContent = `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
+                      function startTimer() {
+                        const timer = setInterval(() => {
+                          const minutes = Math.floor(totalTime / 60);
+                          const seconds = totalTime % 60;
+                          timerElement.textContent = `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
 
-              if (totalTime === 0) {
-                clearInterval(timer);
-                // Non-blocking banner instead of alert
-                showLocalBanner("Time's up! Submitting the exam.", 'alert');
-                document.getElementById("exam-form").submit();
+                          if (totalTime === 0) {
+                            clearInterval(timer);
+                            // Non-blocking banner instead of alert
+                            showLocalBanner("Time's up! Submitting the exam.", 'alert');
+                            document.getElementById("exam-form").submit();
+                          }
+                          totalTime--;
+                        }, 1000);
+                      }
+                      window.onload = startTimer;
+
+                      // Function to handle option selection
+                      function selectOption(optionTile, inputId) {
+                        const questionCard = optionTile.closest(".question-card");
+                        questionCard.querySelectorAll(".option-tile").forEach((tile) => {
+                          tile.classList.remove("selected");
+                        });
+                        optionTile.classList.add("selected");
+                        document.getElementById(inputId).checked = true;
+                      }
+
+                      // Remove old polling (duplicate) to avoid conflicts
+                      // function checkWarnings() { ... }
+                      // setInterval(checkWarnings, 5000);
+
+                      // Prevent right-click
+                      document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+                      // IMPORTANT: Remove focus-alert loop on window blur
+                      // window.addEventListener("blur", () => {
+                      //   alert("You cannot switch tabs or windows during the exam!");
+                      //   window.focus();
+                      // });
+
+                      // Fullscreen change: do not force re-enter or alert in a loop
+                      document.addEventListener("fullscreenchange", () => {
+                        if (!document.fullscreenElement) {
+                          // Use non-blocking banner; do not call requestFullscreen() here
+                          showLocalBanner("Fullscreen exited. Please re-enter fullscreen for proctoring.", 'warning');
+                        }
+                      });
+
+                      // Enter fullscreen once (user gesture recommended)
+                      if (document.documentElement.requestFullscreen) {
+                        document.documentElement.requestFullscreen().catch(() => {
+                          // Show banner instead of alert on failure
+                          showLocalBanner("Unable to enter fullscreen automatically. Please press F11 or use browser controls.", 'warning');
+                        });
+                      }
+
+                      function getCookie(name) {
+                    const value = `; ${document.cookie}`;
+                    const parts = value.split(`; ${name}=`);
+                    if (parts.length === 2) return parts.pop().split(';').shift();
+                  }
+
+                      // Initialize the tab switch count
+                      let tabSwitchCount = {{ tab_count|default:0 }};
+
+                      // Track last visibility and debounce rapid repeats
+                      let lastVisibilityState = document.visibilityState;
+                      let lastSwitchAt = 0;
+                      const SWITCH_DEBOUNCE_MS = 1500;
+
+                      // Local banner helper (reuses #warning-alert; non-blocking)
+                      const banner = document.getElementById('warning-alert');
+                      function showLocalBanner(text, level = 'warning') {
+                        // If server banner is already showing ALERT, prefer not to override severity
+                        banner.textContent = text;
+                        banner.classList.remove('warning', 'alert');
+                        if (level === 'alert') banner.classList.add('alert');
+                        else banner.classList.add('warning');
+                        banner.style.display = 'block';
+                        // auto-hide after 5s for local messages
+                        setTimeout(() => {
+                          // Only hide if server polling hasn’t set a new message
+                          if (!banner.dataset.locked) {
+                            banner.style.display = 'none';
+                            banner.classList.remove('warning', 'alert');
+                          }
+                        }, 5000);
+                      }
+
+                      function lockExamUI() {
+                // disable unload prompt and listeners
+                window.onbeforeunload = null;
+                document.removeEventListener("visibilitychange", tabSwitchHandler);
+                // disable form interaction
+                const form = document.getElementById("exam-form");
+                if (form) {
+                  Array.from(form.elements).forEach(el => el.disabled = true);
+                }
+                // show overlay
+                const overlay = document.getElementById('exam-lock-overlay');
+                if (overlay) overlay.style.display = 'flex';
               }
-              totalTime--;
-            }, 1000);
-          }
-          window.onload = startTimer;
 
-          // Function to handle option selection
-          function selectOption(optionTile, inputId) {
-            const questionCard = optionTile.closest(".question-card");
-            questionCard.querySelectorAll(".option-tile").forEach((tile) => {
-              tile.classList.remove("selected");
-            });
-            optionTile.classList.add("selected");
-            document.getElementById(inputId).checked = true;
-          }
-
-          // Remove old polling (duplicate) to avoid conflicts
-          // function checkWarnings() { ... }
-          // setInterval(checkWarnings, 5000);
-
-          // Prevent right-click
-          document.addEventListener("contextmenu", (e) => e.preventDefault());
-
-          // IMPORTANT: Remove focus-alert loop on window blur
-          // window.addEventListener("blur", () => {
-          //   alert("You cannot switch tabs or windows during the exam!");
-          //   window.focus();
-          // });
-
-          // Fullscreen change: do not force re-enter or alert in a loop
-          document.addEventListener("fullscreenchange", () => {
-            if (!document.fullscreenElement) {
-              // Use non-blocking banner; do not call requestFullscreen() here
-              showLocalBanner("Fullscreen exited. Please re-enter fullscreen for proctoring.", 'warning');
-            }
-          });
-
-          // Enter fullscreen once (user gesture recommended)
-          if (document.documentElement.requestFullscreen) {
-            document.documentElement.requestFullscreen().catch(() => {
-              // Show banner instead of alert on failure
-              showLocalBanner("Unable to enter fullscreen automatically. Please press F11 or use browser controls.", 'warning');
-            });
-          }
-
-          function getCookie(name) {
-        const value = `; ${document.cookie}`;
-        const parts = value.split(`; ${name}=`);
-        if (parts.length === 2) return parts.pop().split(';').shift();
-      }
-
-          // Initialize the tab switch count
-          let tabSwitchCount = {{ tab_count|default:0 }};
-
-          // Track last visibility and debounce rapid repeats
-          let lastVisibilityState = document.visibilityState;
-          let lastSwitchAt = 0;
-          const SWITCH_DEBOUNCE_MS = 1500;
-
-          // Local banner helper (reuses #warning-alert; non-blocking)
-          const banner = document.getElementById('warning-alert');
-          function showLocalBanner(text, level = 'warning') {
-            // If server banner is already showing ALERT, prefer not to override severity
-            banner.textContent = text;
-            banner.classList.remove('warning', 'alert');
-            if (level === 'alert') banner.classList.add('alert');
-            else banner.classList.add('warning');
-            banner.style.display = 'block';
-            // auto-hide after 5s for local messages
-            setTimeout(() => {
-              // Only hide if server polling hasn’t set a new message
-              if (!banner.dataset.locked) {
-                banner.style.display = 'none';
-                banner.classList.remove('warning', 'alert');
-              }
-            }, 5000);
-          }
-
-          // Tab/window switch detection using visibilitychange only
-          async function tabSwitchHandler() {
+                      // Tab/window switch detection using visibilitychange only
+                      async function tabSwitchHandler() {
             const now = Date.now();
-            // Only count when going from visible -> hidden (covers tab and app switch)
             if (lastVisibilityState === 'visible' && document.visibilityState === 'hidden') {
-              // debounce to avoid repeated triggers from modal UI/focus changes
               if (now - lastSwitchAt < SWITCH_DEBOUNCE_MS) {
                 lastVisibilityState = document.visibilityState;
                 return;
               }
               lastSwitchAt = now;
 
-              tabSwitchCount++;
-              document.getElementById("tab-count").textContent = tabSwitchCount;
-
-              // POST to record the switch (no alert loop; show banner instead)
               try {
                 const res = await fetch("{% url 'record_tab_switch' %}", {
                   method: "POST",
-                  headers: { "X-CSRFToken": "{{ csrf_token }}" },
+                  headers: {
+                    "X-CSRFToken": getCookie('csrftoken'),
+                    "Content-Type": "application/json"
+                  },
+                  body: JSON.stringify({ source: "visibilitychange" })
                 });
                 const data = await res.json();
+
+                // Update UI from server count/limit
+                if (typeof data.limit === 'number') {
+                  const limitEl = document.getElementById("tab-limit");
+                  if (limitEl) limitEl.textContent = data.limit;
+                }
+                if (typeof data.count === 'number') {
+                  tabSwitchCount = data.count;
+                  document.getElementById("tab-count").textContent = tabSwitchCount;
+                }
+
                 if (data.status === "terminated") {
-                  showLocalBanner(data.message, 'alert');
-                  window.location.href = "{% url 'exam_submission_success' %}";
+                  // prevent the "Leave site?" prompt and lock UI BEFORE redirect
+                  lockExamUI();
+                  showLocalBanner(data.message || "Tab/window switch limit exceeded.", 'alert');
+                  // Use replace to avoid coming back with back button
+                  window.location.replace("{% url 'exam_submission_success' %}");
+                  return;
                 } else {
-                  showLocalBanner(`Warning: Tab/window switch detected! Total: ${tabSwitchCount}`, 'warning');
+                  showLocalBanner(`Warning: Tab/window switch detected! Total: ${tabSwitchCount}/${data.limit || 5}`, 'warning');
                 }
               } catch (e) {
                 console.debug("tab switch post error", e);
@@ -314,71 +360,89 @@
           }
           document.addEventListener("visibilitychange", tabSwitchHandler);
 
-          // Prevent accidental closing or refreshing of the exam page
+          // Prevent accidental closing or refreshing during normal exam flow
           window.onbeforeunload = function () {
             return "You are in the middle of an exam! Are you sure you want to leave?";
           };
 
-          // When the exam is submitted, remove the listener and onbeforeunload warning
+          // If submitted, remove handlers
           document.getElementById("exam-form").addEventListener("submit", function () {
             window.onbeforeunload = null;
             document.removeEventListener("visibilitychange", tabSwitchHandler);
           });
 
-          /*
-          ----------- SERVER WARNING POLLER (kept) -----------------
-          */
           (function () {
-            const WARNING_URL = "{% url 'get_warning' %}";
-            const POLL_INTERVAL_MS = 2000; // 2 seconds
-            let lastText = null;
-
-            function showServerBanner(text, level) {
-              // Lock banner so local auto-hide doesn’t hide server messages
-              banner.dataset.locked = "1";
-              banner.textContent = text;
-              banner.classList.remove('warning', 'alert');
-              if (level === 'alert') banner.classList.add('alert');
-              else banner.classList.add('warning');
-              banner.style.display = 'block';
+        const STATE_URL = "{% url 'exam_state' %}";
+        const POLL_MS = 3000;
+        async function pollState() {
+          try {
+            const res = await fetch(STATE_URL, { cache: 'no-store' });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data.terminated) {
+              lockExamUI();
+              window.location.replace("{% url 'exam_submission_success' %}");
             }
+          } catch { /* ignore */ }
+        }
+        setInterval(pollState, POLL_MS);
+        pollState();
+      })();
 
-            function clearServerBanner() {
-              delete banner.dataset.locked;
-              banner.style.display = 'none';
-              banner.classList.remove('warning', 'alert');
-              lastText = null;
-            }
+                      /*
+                      ----------- SERVER WARNING POLLER (kept) -----------------
+                      */
+                      (function () {
+                        const WARNING_URL = "{% url 'get_warning' %}";
+                        const POLL_INTERVAL_MS = 2000; // 2 seconds
+                        let lastText = null;
 
-            async function pollWarning() {
-              try {
-                const res = await fetch(WARNING_URL, { cache: 'no-store' });
-                if (!res.ok) return;
-                const data = await res.json();
-                const w = data.warning || null;
-                if (!w) {
-                  // only clear if we own the lock
-                  if (banner.dataset.locked) clearServerBanner();
-                  return;
-                }
-                let level = 'warning';
-                if (w.toLowerCase().includes('alert')) level = 'alert';
-                else if (w.toLowerCase().includes('warning')) level = 'warning';
+                        function showServerBanner(text, level) {
+                          // Lock banner so local auto-hide doesn’t hide server messages
+                          banner.dataset.locked = "1";
+                          banner.textContent = text;
+                          banner.classList.remove('warning', 'alert');
+                          if (level === 'alert') banner.classList.add('alert');
+                          else banner.classList.add('warning');
+                          banner.style.display = 'block';
+                        }
 
-                if (w !== lastText) {
-                  showServerBanner(w, level);
-                  lastText = w;
-                }
-              } catch (err) {
-                console.debug('Warning poll error', err);
-              }
-            }
-            setInterval(pollWarning, POLL_INTERVAL_MS);
-            pollWarning();
-          })();
-          /*
-          ----------- SERVER WARNING POLLER END -----------------
-          */
+                        function clearServerBanner() {
+                          delete banner.dataset.locked;
+                          banner.style.display = 'none';
+                          banner.classList.remove('warning', 'alert');
+                          lastText = null;
+                        }
+
+                        async function pollWarning() {
+                          try {
+                            const res = await fetch(WARNING_URL, { cache: 'no-store' });
+                            if (!res.ok) return;
+                            const data = await res.json();
+                            const w = data.warning || null;
+                            if (!w) {
+                              // only clear if we own the lock
+                              if (banner.dataset.locked) clearServerBanner();
+                              return;
+                            }
+                            let level = 'warning';
+                            if (w.toLowerCase().includes('alert')) level = 'alert';
+                            else if (w.toLowerCase().includes('warning')) level = 'warning';
+
+                            if (w !== lastText) {
+                              showServerBanner(w, level);
+                              lastText = w;
+                            }
+                          } catch (err) {
+                            console.debug('Warning poll error', err);
+                          }
+                        }
+                        setInterval(pollWarning, POLL_INTERVAL_MS);
+                        pollWarning();
+                      })();
+                      /*
+                      ----------- SERVER WARNING POLLER END -----------------
+                      */
     </script>
     <!-- ...existing code... -->
   </body>

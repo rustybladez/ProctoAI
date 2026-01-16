@@ -788,6 +788,7 @@ def exam(request):
     # Reset per-exam tab/window switch counters in session (authoritative)
     request.session['tab_switch_count'] = 0
     request.session['tab_switch_limit'] = MAX_TAB_SWITCHES
+    request.session['exam_terminated'] = False
     request.session.modified = True
 
     # Load exam questions from the JSON file
@@ -820,26 +821,36 @@ def record_tab_switch(request):
     if request.method != "POST":
         return JsonResponse({"error": "POST required"}, status=400)
 
-    # Authoritative session counter
     sess = request.session
+    # If already terminated, keep returning terminated (idempotent)
+    if sess.get('exam_terminated', False):
+        return JsonResponse({
+            "status": "terminated",
+            "message": "Exam already terminated due to tab/window switches.",
+            "count": int(sess.get('tab_switch_count', 0)),
+            "limit": int(sess.get('tab_switch_limit', MAX_TAB_SWITCHES)),
+        }, status=200)
+
     count = int(sess.get('tab_switch_count', 0)) + 1
     sess['tab_switch_count'] = count
     limit = int(sess.get('tab_switch_limit', MAX_TAB_SWITCHES))
     sess.modified = True
 
-    # Optional: keep DB event log, but do NOT use it for enforcement
+    # Optional DB logging (not used for enforcement)
     student = request.user.student
     cheating_event, _ = CheatingEvent.objects.get_or_create(
         student=student,
         event_type='tab_switch',
         defaults={'cheating_flag': False, 'tab_switch_count': 0},
     )
-    # record history (not used for enforcement)
     cheating_event.tab_switch_count = (cheating_event.tab_switch_count or 0) + 1
     cheating_event.cheating_flag = True
     cheating_event.save()
 
     if count >= limit:
+        # Mark session terminated; background threads can also check stop_event if you want
+        sess['exam_terminated'] = True
+        sess.modified = True
         stop_event.set()
         return JsonResponse({
             "status": "terminated",
@@ -855,6 +866,15 @@ def record_tab_switch(request):
         "limit": limit,
     }, status=200)
 
+@login_required
+def exam_state(request):
+    """Lightweight state endpoint so the client can react even if a redirect was canceled."""
+    sess = request.session
+    return JsonResponse({
+        "terminated": bool(sess.get('exam_terminated', False)),
+        "count": int(sess.get('tab_switch_count', 0)),
+        "limit": int(sess.get('tab_switch_limit', MAX_TAB_SWITCHES)),
+    }, status=200)
 
 # Exam submission success page
 def exam_submission_success(request):
